@@ -7,7 +7,9 @@ Milestone 1 is built and tested (90 passing tests). The scaffold is on GitHub an
 
 - GitHub: https://github.com/milindmali1810/Chain-kuli-ki-Main-kuli (public)
 - Vercel project: chain-kuli-ki-main-kuli, live at https://chain-kuli-ki-main-kuli.vercel.app
-- The live site is still the first deploy (empty app, NO PIN screen). The PIN screen is in the code but not yet deployed: it needs APP_PIN set in Vercel first, otherwise it locks everyone out (by design). Vercel is not connected to GitHub; deploy with `vercel deploy --prod` from the project folder.
+- The live site now has the PIN screen (APP_PIN set in Vercel production, deployed and tested 11 Oct). Vercel is not connected to GitHub; deploy with `vercel deploy --prod` from the project folder.
+- Supabase project: `dream11-optimizer` (ref hpjkyuziarokukhxabru, region ap-south-1, free plan) in org MOH. Empty, no tables yet. To make room on the 2-active-project free limit, the user's other project `dil-chahta-hai` was paused (data kept; restore from the Supabase dashboard).
+- .env.local (git-ignored) now holds APP_PIN, GEMINI_API_KEY (tested OK), APIFY_TOKEN (tested OK), NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (the sb_publishable_ key, tested OK). SUPABASE_SERVICE_ROLE_KEY is still EMPTY: the user must copy it from Supabase dashboard > Project Settings > API Keys. GEMINI_API_KEY and the Supabase keys are not yet set in Vercel env (add them when the app first needs them). The keys were pasted into chat, so the user should regenerate the Gemini and Apify keys after the build.
 
 ## Milestone 1: what is built
 - src/config/sourced.ts: `Sourced<T>` label (value, source, status certain|likely|guessing|conflict|unverified).
@@ -55,7 +57,7 @@ Milestone 1 is built and tested (90 passing tests). The scaffold is on GitHub an
 - docs/HANDOFF.md — this file
 
 ## Open items
-0. Milind must choose a PIN and set APP_PIN: in .env.local for local use, and in Vercel (Project Settings > Environment Variables, Production) before the PIN version is deployed. Also paste the other keys into .env.local himself.
+0. Milind to paste SUPABASE_SERVICE_ROLE_KEY into .env.local (server-only). PIN 3030 is short and guessable; consider a longer one before the viva.
 1. Three Dream11 screenshots (team-creation screen, in-app points page, backup screen) would settle the unverified rules.
 2. Confirm the demo league and that credits are entered manually.
 3. Test Cricsheet freshness for the India vs West Indies T20Is of 6 and 9 Oct 2026 in M2; if missing, seed from older completed T20Is and label as seeded.
