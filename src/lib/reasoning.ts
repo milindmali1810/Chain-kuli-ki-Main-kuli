@@ -49,7 +49,9 @@ export interface CaptainCandidateFacts {
 export interface CaptainCase {
   howDecided: string;
   captain: CaptainCandidateFacts;
-  runnerUp: (CaptainCandidateFacts & { whyBehind: string }) | null;
+  // howClose is decided by code, so the wording cannot soften a gap: "very close" (within 5% on the measure the
+  // engine ranks by) or "behind".
+  runnerUp: (CaptainCandidateFacts & { whyBehind: string; howClose: "very close" | "behind" }) | null;
   vice: { name: string; role: string; expectedPointsIfPlaying: number; chanceOfPlayingPct: number; mostRecentScores: number[]; routeNote: string } | null;
 }
 
@@ -91,7 +93,14 @@ export function buildCaptainCase(picks: PickFacts[], orderedNames: string[]): Ca
     if (r.expectedPointsIfPlaying < c.expectedPointsIfPlaying - 0.5) reasons.push(`we expect fewer points from him (${r.expectedPointsIfPlaying} against ${c.expectedPointsIfPlaying})`);
     if (r.quietMatchPct > c.quietMatchPct + 2) reasons.push(`he has quiet matches more often (${r.quietMatchPct}% of recent matches against ${c.quietMatchPct}%)`);
     if (r.chanceOfPlayingPct < c.chanceOfPlayingPct) reasons.push(`he is less certain to play (${r.chanceOfPlayingPct}% against ${c.chanceOfPlayingPct}%)`);
-    runnerUp = { ...r, whyBehind: reasons.length ? reasons.join(" and ") : "the two are very close and the gap is small" };
+    // The engine ranks captains by: points we expect x chance of playing x share of matches that are not duds.
+    const rank = (x: CaptainCandidateFacts) => x.expectedPointsIfPlaying * (x.chanceOfPlayingPct / 100) * (1 - x.quietMatchPct / 100);
+    const close = rank(r) >= 0.95 * rank(c);
+    runnerUp = {
+      ...r,
+      whyBehind: reasons.length ? reasons.join(" and ") : "the two are very close and the gap is small",
+      howClose: close ? "very close" : "behind",
+    };
   }
 
   return {
@@ -181,7 +190,7 @@ export const SYSTEM_PROMPT = [
   "Lead with the most decisive factor for THAT player: his lastPoints (recent scores), role-specific numbers (balls faced for batters, overs for bowlers), or a venue, team-form or death-over effect that is not zero. Mention the opponent or venue when it moved his number.",
   "Vary the wording. Do not start every sentence with the player's name and do not repeat the same phrase for every player.",
   "Skip any field that is missing or zero; do not mention it. Only say a relevant number is unavailable if FACTS shows null for a stat that matters for his role.",
-  "Captain: 2 or 3 sentences using ONLY context.captaincy. Say why he is trusted with the armband in cricket terms: his role in this match (whyEligible), his most recent scores in order, how reliable he is (quietMatchPct, chanceOfPlayingPct), and the points we expect from him. Then in whyNotRunnerUp, say in plain words why the runner-up is just behind, using runnerUp.whyBehind. Never mention a score that is not listed.",
+  "Captain: 2 or 3 sentences using ONLY context.captaincy. Say why he is trusted with the armband in cricket terms: his role in this match (whyEligible), his most recent scores in order, how reliable he is (quietMatchPct, chanceOfPlayingPct), and the points we expect from him. Then in whyNotRunnerUp, ALWAYS name the runner-up by his name (runnerUp.name) and say why he is behind using runnerUp.whyBehind, describing the gap exactly as runnerUp.howClose says (\"very close\" or \"behind\"): never call a gap close when howClose is \"behind\". Never mention a score that is not listed.",
   "Vice-captain: 1 or 2 sentences using context.captaincy.vice: why he is the backup, using routeNote, his recent scores and the points we expect.",
   "pitchReport: 2 sentences on the pitch and weather, only from FACTS; say what the numbers do and do not tell us. summary: 2 sentences on the team: credits used against the cap and the role and team make-up from composition.",
   "Plain English. No hype. Never write that a team will win or lose.",
@@ -268,7 +277,7 @@ export function templateCaptain(facts: Facts, p: PickFacts): { reason: string; w
     : `${p.name} is captain: the best mix of points we expect and reliability.`;
   const ru = c?.runnerUp;
   const whyNotRunnerUp = ru
-    ? `${ru.name} was a close second, but ${ru.whyBehind}.`
+    ? `${ru.name} was ${ru.howClose === "very close" ? "a close second" : "behind"}: ${ru.whyBehind}.`
     : "No other player met the rules to be captain.";
   return { reason, whyNotRunnerUp };
 }
@@ -351,7 +360,12 @@ export function assembleExplanation(facts: Facts, raw: unknown): Explanation {
   const capTpl = cap ? templateCaptain(facts, cap) : { reason: "No captain.", whyNotRunnerUp: "" };
   const capRaw = r.captain && cap && r.captain.playerId === cap.playerId ? r.captain : null;
   const captainReason = choose("captain", capRaw?.reason, capTpl.reason);
-  const captainWhy = choose("captain runner-up", capRaw?.whyNotRunnerUp, capTpl.whyNotRunnerUp);
+  // The runner-up must be NAMED, and a clear gap must not be called close: otherwise the plain template is used.
+  const ru = facts.context.captaincy?.runnerUp;
+  const whyRaw = capRaw?.whyNotRunnerUp;
+  const whyOk = !ru || (typeof whyRaw === "string" && whyRaw.includes(ru.name) && !(ru.howClose === "behind" && /\b(just behind|narrowly|very close|close second|edges?)\b/i.test(whyRaw)));
+  if (whyRaw !== undefined && whyRaw !== null && !whyOk) rejections.push("captain runner-up: did not name the runner-up or misdescribed the gap");
+  const captainWhy = choose("captain runner-up", whyOk ? whyRaw : null, capTpl.whyNotRunnerUp);
   const viceRaw = r.viceCaptain && vice && r.viceCaptain.playerId === vice.playerId ? r.viceCaptain : null;
   const viceReason = choose("vice-captain", viceRaw?.reason, vice ? templateVice(facts, vice) : "No vice-captain.");
   const pitch = choose("pitch report", r.pitchReport, templatePitch(facts.context));

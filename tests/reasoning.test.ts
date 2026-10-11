@@ -125,7 +125,7 @@ const goodGemini = {
     { playerId: 1, reason: "Player One is expected to score 44.3 points; his last scores were 76 and 61, and the 2.5% venue boost helps." },
     { playerId: 2, reason: "Player Two bowls 3.8 overs on average and is expected to score 39.4 points." },
   ],
-  captain: { playerId: 1, reason: "Player One bats long, averaging 21.3 balls an innings, and we expect about 55.4 points from him.", whyNotRunnerUp: "Player Two is a close second, but we expect fewer points from him, 39.4 against 55.4." },
+  captain: { playerId: 1, reason: "Player One bats long, averaging 21.3 balls an innings, and we expect about 55.4 points from him.", whyNotRunnerUp: "Player Two is behind: we expect fewer points from him, 39.4 against 55.4." },
   viceCaptain: { playerId: 2, reason: "Player Two earns points with the ball, so the two do not depend on the same thing; we expect about 39.4 points and he plays with certainty at 100%." },
   pitchReport: "The pitch is high scoring, 11.1% above average over 22 matches, with 77% humidity.",
   summary: "The team costs 99.5 of 100 credits.",
@@ -149,6 +149,28 @@ describe("assembleExplanation", () => {
     expect(e.report.replacedByTemplate).toBe(1);
     expect(e.report.rejections[0]).toContain("Player One");
     expect(e.report.rejections[0]).toContain("4");
+  });
+
+  it("the runner-up must be named: 'the runner-up is behind' with no name is replaced by the template", () => {
+    const unnamed = structuredClone(goodGemini);
+    unnamed.captain.whyNotRunnerUp = "The runner-up is behind because we expect fewer points from him, 39.4 against 55.4.";
+    const e = assembleExplanation(facts, unnamed);
+    expect(e.captain.whyNotRunnerUp).toContain("Player Two");
+    expect(e.report.rejections.join(" ")).toContain("did not name the runner-up");
+  });
+
+  it("a gap marked behind may not be called close (code decides how close it is)", () => {
+    expect(facts.context.captaincy!.runnerUp!.howClose).toBe("behind");
+    const soft = structuredClone(goodGemini);
+    soft.captain.whyNotRunnerUp = "Player Two is just behind, as we expect fewer points from him, 39.4 against 55.4.";
+    const e = assembleExplanation(facts, soft);
+    expect(e.captain.whyNotRunnerUp).toBe("Player Two was behind: we expect fewer points from him (39.4 against 55.4).");
+  });
+
+  it("a genuinely close pair is called close", () => {
+    const cap = pick({ playerId: 1, name: "Player One", isCaptain: true, chanceOfPlayingPct: 100, expectedPoints: 50.8, blankMatchesPct: 20 });
+    const rival = pick({ playerId: 2, name: "Player Two", chanceOfPlayingPct: 100, expectedPoints: 50.2, blankMatchesPct: 20 });
+    expect(buildCaptainCase([cap, rival], ["Player One", "Player Two"])!.runnerUp!.howClose).toBe("very close");
   });
 
   it("replaces a sentence that borrows another player's number, even though that number is in the facts", () => {
