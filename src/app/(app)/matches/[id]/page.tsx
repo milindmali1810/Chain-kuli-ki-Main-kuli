@@ -6,7 +6,9 @@ import { Icon } from "@/components/icons";
 import { CAPTAIN_INTRO, CAPTAIN_STEPS } from "@/lib/captainRules";
 import { ROLE_LABEL, formatDate, num, pctEffect } from "@/lib/format";
 import { getMatch, type PlayerRow, type StageView } from "@/lib/queries";
+import { loadEditorData } from "@/lib/editor";
 import { EntryForm } from "./EntryForm";
+import { TeamEditor } from "./TeamEditor";
 
 function Bars({ predicted, actual, max }: { predicted: number; actual: number | null; max: number }) {
   const w = (v: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
@@ -70,7 +72,7 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
   await connection(); // read live data per visit; never run this while the app is being built
   const { id } = await params;
   const { stage: stageParam } = await searchParams;
-  const match = await getMatch(id);
+  const [match, editor] = await Promise.all([getMatch(id), loadEditorData(id)]);
   if (!match) notFound();
 
   const both = match.stages.final && match.stages.provisional;
@@ -91,7 +93,8 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
           <span className="chip">Credits are seeded, not Dream11&apos;s own</span>
         </div>
         <div className="row">
-          <a href="#enter" className="btn primary">Enter Dream11 points</a>
+          <a href="#edit" className="btn primary">Edit and confirm my team</a>
+          <a href="#enter" className="btn">Enter Dream11 points</a>
         </div>
       </div>
 
@@ -197,6 +200,8 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
               </section>
             </aside>
           </div>
+
+          {editor && <TeamEditor data={editor} />}
 
           <section id="enter" className="card stack" aria-labelledby="enter-h">
             <h2 id="enter-h">Enter the real Dream11 points</h2>

@@ -23,6 +23,7 @@ WK 1-4, BAT 3-6, AR 1-4, BOWL 3-6): a team valid under it is valid under the loo
 
 - **Matches:** cards with predicted vs actual team score for each backtested match.
 - **Match view:** Final (confirmed XI) and Provisional (predicted XI) teams, rules check, credits, pitch and weather, paired predicted/actual bars, the reason for every pick, the captain and vice-captain reasons, and a form to enter the real Dream11 points.
+- **Edit and confirm my team:** start from the agent's team, swap players, choose the captain and vice-captain, with credits and rules checked live in plain English (the same validator as the agent's team, checked again on the server before saving). Editable until the match starts; matches already played are practice and show how your team would have scored against the agent's.
 - **Learning:** where the agent is consistently wrong (by role and pitch type), proposed corrections that Aryan accepts or rejects, and accuracy per rubric version.
 - **Data:** roles for players the agent would not guess. **Guide:** how it works, plus the [Components map](docs/COMPONENTS_MAP.md).
 

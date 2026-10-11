@@ -112,14 +112,14 @@ function checkPlayers(players: Player[], rules: RulesProfile): Violation[] {
       violations.push({
         code: "ROLE_MIN",
         role,
-        message: `Only ${n} ${ROLE_LABEL[role]} picked but at least ${min.value} are required.`,
+        message: `Only ${n} ${ROLE_LABEL[role]} picked but at least ${min.value} ${min.value === 1 ? "is" : "are"} required.`,
       });
     }
     if (n > max.value) {
       violations.push({
         code: "ROLE_MAX",
         role,
-        message: `${n} ${ROLE_LABEL[role]} picked but at most ${max.value} are allowed.`,
+        message: `${n} ${ROLE_LABEL[role]} picked but at most ${max.value} ${max.value === 1 ? "is" : "are"} allowed.`,
       });
     }
   }

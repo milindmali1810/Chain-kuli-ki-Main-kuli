@@ -63,6 +63,16 @@ export default function GuidePage() {
         </ol>
       </section>
 
+      <section className="stack" aria-labelledby="edit-h">
+        <h2 id="edit-h">Can I change the agent&apos;s team?</h2>
+        <p className="muted">
+          Yes. On a match, tap <strong>Edit and confirm my team</strong>. It starts from the agent&apos;s team. Add or remove players, choose the captain and
+          vice-captain, and watch the credits and the rule checks update as you go. If a change breaks a rule, the screen says which one in plain English.
+          Press <strong>Confirm my team</strong> to save it. Before the match starts you can keep editing. After it starts the team is locked. You then enter the team in Dream11 yourself.
+          For a match that has already been played, editing is <strong>practice</strong>: you see how your team would have scored against the agent&apos;s.
+        </p>
+      </section>
+
       <section className="stack" aria-labelledby="enter-h">
         <h2 id="enter-h">Where do I enter the real points?</h2>
         <p className="muted">Open any match from the Matches screen and tap <strong>Enter Dream11 points</strong> at the top (or scroll to the bottom). Change only the players whose real Dream11 points differ from the pre-filled numbers, then save. Only the boxes you change are stored as real Dream11 points.</p>

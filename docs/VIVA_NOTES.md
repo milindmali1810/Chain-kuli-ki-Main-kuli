@@ -29,6 +29,13 @@ Short, honest answers you can say in your own words. Each one names where to loo
 - No live match was available before the deadline. For a played match the system sees only data from before it (`src/lib/predict.ts` ignores any row dated on or after the match). Roles are inferred as of the match date too, so nothing leaks.
 - Real scorecard points are computed with the same points table and shown beside the predictions.
 
+## Can Aryan change the team? What happens at match time?
+- Yes. The match screen has an editor (`src/app/(app)/matches/[id]/TeamEditor.tsx`): add or remove players, pick the captain and vice-captain, with live credits and rule feedback.
+- The rules are checked by the same validator the agent's team goes through (`src/lib/editorLogic.ts` calls `validateTeam`), in the browser while editing and again on the server before saving (`team-actions.ts`). The server also re-loads players, roles and credits from the database and re-checks the lock time, so nothing the browser sends is trusted. I tested this by sending an invalid team straight to the server: it was refused and nothing was saved.
+- Editing is open until the match starts, then locked. A match that has already been played is "practice": it shows how his edited team would have scored against the agent's, using the same score formula.
+- The agent cannot submit to Dream11 (there is no official way), so Aryan enters the confirmed team in Dream11 himself.
+- Honest limit: a true live match also needs an upcoming match to be created, the confirmed XI at the toss, real credits and an exact start time. That path is not built yet; the engine already takes those as inputs.
+
 ## How does it learn?
 - It compares predicted with actual for every player in every final team and groups the errors by role and pitch type (`src/lib/calibration.ts`).
 - If a role is consistently off, it **proposes** a correction factor, capped at 20% per step. Aryan accepts or rejects. Accepting creates a new rubric version; old predictions keep the version that made them.

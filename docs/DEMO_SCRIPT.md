@@ -20,6 +20,12 @@ Record on a laptop at normal width, then show the phone view for 15 seconds at t
 - Show the predicted (outlined) and actual (solid) bars. Point at a player who didn't play and a captain who scored low: "This is exactly the kind of miss the system learns from."
 - Open "What the model could not use": "It says plainly what it doesn't know."
 
+## 2:00 to 2:25 — Edit and confirm (add about 30 seconds if time allows)
+- Tap "Edit and confirm my team". "This is practice because the match has been played; for a live match you can edit until it starts."
+- Remove one player: show the plain-English rule errors and the credits changing. Add a replacement and pick a different vice-captain: "valid again".
+- Show "How it would have scored": your team vs the agent's, on real points.
+- Press "Confirm my team" (optional). Say: "The server checks the rules again before saving."
+
 ## 2:15 to 2:50 — Post-match entry
 - Scroll to "Enter the real Dream11 points". Change one number, save. "Only the boxes I change are saved as real Dream11 points; the rest stay labelled as computed from the scorecard."
 - (Optional) type "abc" to show the error message and that nothing is saved. Remove the test value afterwards if you saved one.
