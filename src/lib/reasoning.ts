@@ -5,6 +5,8 @@
 //   4. A rejected (or missing) sentence is replaced by a template built only from FACTS.
 // So the app can never show an invented statistic, and it still works when Gemini is down.
 
+import { RUBRIC } from "@/config/rubric";
+
 export interface PickFacts {
   playerId: number;
   name: string;
@@ -52,7 +54,9 @@ export interface CaptainCase {
   // howClose is decided by code, so the wording cannot soften a gap: "very close" (within 5% on the measure the
   // engine ranks by) or "behind".
   runnerUp: (CaptainCandidateFacts & { whyBehind: string; howClose: "very close" | "behind" }) | null;
-  vice: { name: string; role: string; expectedPointsIfPlaying: number; chanceOfPlayingPct: number; mostRecentScores: number[]; routeNote: string } | null;
+  // whyNotCaptain is set only when the vice-captain is expected to score MORE than the captain: the honest reason
+  // he does not wear the armband (usually the captain role rules).
+  vice: { name: string; role: string; expectedPointsIfPlaying: number; chanceOfPlayingPct: number; mostRecentScores: number[]; routeNote: string; whyNotCaptain: string | null } | null;
 }
 
 const ROLE_WORD: Record<string, string> = { WK: "wicket-keeper", BAT: "batter", AR: "all-rounder", BOWL: "bowler" };
@@ -65,6 +69,21 @@ function whyEligible(p: PickFacts): string {
 }
 
 const expectedIfPlaying = (p: PickFacts) => Math.round((p.expectedPoints / Math.max(p.chanceOfPlayingPct / 100, 0.01)) * 10) / 10;
+
+// Why a player expected to score MORE than the captain is not the captain. Mirrors the captain rules in selectTeam.ts.
+function whyNotCaptain(p: PickFacts, cap: PickFacts): string | null {
+  if (expectedIfPlaying(p) <= expectedIfPlaying(cap)) return null;
+  const rule = RUBRIC.captain;
+  if (p.chanceOfPlayingPct < rule.pPlayMin.value * 100) return `he is less certain to play (${p.chanceOfPlayingPct}%)`;
+  if (p.role === "BAT" || p.role === "WK") {
+    if ((p.avgBallsFaced ?? 0) < rule.minAvgBallsBat.value) return `he usually bats only about ${p.avgBallsFaced} balls an innings, so a long innings is not guaranteed`;
+  } else if (p.role === "BOWL") {
+    if ((p.avgOvers ?? 0) < rule.minAvgOversBowl.value) return `he bowls only about ${p.avgOvers} overs a match`;
+  } else if ((p.avgBallsFaced ?? 0) < rule.arMinBalls.value || (p.avgOvers ?? 0) < rule.arMinOvers.value) {
+    return "he does not do both jobs enough to be a certain starter in both";
+  }
+  return `he has quiet matches more often (${p.blankMatchesPct}% of recent matches against ${cap.blankMatchesPct}%)`;
+}
 
 function candidateFacts(p: PickFacts): CaptainCandidateFacts {
   return {
@@ -119,6 +138,7 @@ export function buildCaptainCase(picks: PickFacts[], orderedNames: string[]): Ca
             route(vice.role) !== route(cap.role)
               ? `he earns points differently from the captain (${route(vice.role)} against ${route(cap.role)}), so the two do not depend on the same thing`
               : "he is the next best player after the captain",
+          whyNotCaptain: whyNotCaptain(vice, cap),
         }
       : null,
   };
@@ -191,7 +211,7 @@ export const SYSTEM_PROMPT = [
   "Vary the wording. Do not start every sentence with the player's name and do not repeat the same phrase for every player.",
   "Skip any field that is missing or zero; do not mention it. Only say a relevant number is unavailable if FACTS shows null for a stat that matters for his role.",
   "Captain: 2 or 3 sentences using ONLY context.captaincy. Say why he is trusted with the armband in cricket terms: his role in this match (whyEligible), his most recent scores in order, how reliable he is (quietMatchPct, chanceOfPlayingPct), and the points we expect from him. Then in whyNotRunnerUp, ALWAYS name the runner-up by his name (runnerUp.name) and say why he is behind using runnerUp.whyBehind, describing the gap exactly as runnerUp.howClose says (\"very close\" or \"behind\"): never call a gap close when howClose is \"behind\". Never mention a score that is not listed.",
-  "Vice-captain: 1 or 2 sentences using context.captaincy.vice: why he is the backup, using routeNote, his recent scores and the points we expect.",
+  "Vice-captain: 2 sentences using context.captaincy.vice: why he is the backup (routeNote), his recent scores and the points we expect. If vice.whyNotCaptain is not null, he is expected to score MORE than the captain, so you must say plainly why he still is not captain, using whyNotCaptain.",
   "pitchReport: 2 sentences on the pitch and weather, only from FACTS; say what the numbers do and do not tell us. summary: 2 sentences on the team: credits used against the cap and the role and team make-up from composition.",
   "Plain English. No hype. Never write that a team will win or lose.",
 ].join("\n");
@@ -285,7 +305,7 @@ export function templateCaptain(facts: Facts, p: PickFacts): { reason: string; w
 export function templateVice(facts: Facts, p: PickFacts): string {
   const v = facts.context.captaincy?.vice;
   return v
-    ? `${p.name} is vice-captain: ${v.routeNote}. We expect about ${v.expectedPointsIfPlaying} points from him and his latest scores are ${recent(v.mostRecentScores)}.`
+    ? `${p.name} is vice-captain: ${v.routeNote}. We expect about ${v.expectedPointsIfPlaying} points from him and his latest scores are ${recent(v.mostRecentScores)}.${v.whyNotCaptain ? ` He is not captain even though we expect slightly more from him on paper, because ${v.whyNotCaptain}.` : ""}`
     : `${p.name} is vice-captain: the next best choice after the captain.`;
 }
 

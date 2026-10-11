@@ -241,6 +241,27 @@ describe("buildCaptainCase: the reasons, in plain terms, computed by code", () =
     expect(buildCaptainCase([ar], [])!.captain.whyEligible).toBe("he does both jobs: about 12.5 balls faced and 3 overs bowled a match");
   });
 
+  it("a vice-captain expected to score MORE than the captain gets the honest reason he is not captain", () => {
+    const cap = pick({ playerId: 1, name: "C", isCaptain: true, expectedPoints: 49, chanceOfPlayingPct: 100 });
+    // Expected 51.2 (more than the captain's 49) but he usually bats only about 8.9 balls, below the 15-ball rule.
+    const vice = pick({ playerId: 2, name: "V", role: "BAT", isViceCaptain: true, expectedPoints: 51.2, chanceOfPlayingPct: 100, avgBallsFaced: 8.9 });
+    expect(buildCaptainCase([cap, vice], [])!.vice!.whyNotCaptain).toBe("he usually bats only about 8.9 balls an innings, so a long innings is not guaranteed");
+  });
+
+  it("other honest reasons: not certain to play, bowls too few overs, or simply more quiet matches", () => {
+    const cap = pick({ playerId: 1, name: "C", isCaptain: true, expectedPoints: 40, chanceOfPlayingPct: 100, blankMatchesPct: 20 });
+    const unsure = pick({ playerId: 2, name: "V", isViceCaptain: true, expectedPoints: 40.8, chanceOfPlayingPct: 80 });
+    expect(buildCaptainCase([cap, unsure], [])!.vice!.whyNotCaptain).toContain("less certain to play (80%)");
+    const part = pick({ playerId: 2, name: "V", role: "BOWL", isViceCaptain: true, expectedPoints: 45, chanceOfPlayingPct: 100, avgOvers: 2.4 });
+    expect(buildCaptainCase([cap, part], [])!.vice!.whyNotCaptain).toBe("he bowls only about 2.4 overs a match");
+    const flaky = pick({ playerId: 2, name: "V", role: "BAT", isViceCaptain: true, expectedPoints: 45, chanceOfPlayingPct: 100, avgBallsFaced: 20, blankMatchesPct: 45 });
+    expect(buildCaptainCase([cap, flaky], [])!.vice!.whyNotCaptain).toBe("he has quiet matches more often (45% of recent matches against 20%)");
+  });
+
+  it("when the vice-captain is expected to score less than the captain, there is nothing to explain", () => {
+    expect(facts.context.captaincy!.vice!.whyNotCaptain).toBeNull();
+  });
+
   it("no captain, no case; a lone captain has no runner-up", () => {
     expect(buildCaptainCase([pick({ playerId: 1 })], [])).toBeNull();
     expect(buildCaptainCase([pick({ playerId: 1, isCaptain: true })], ["Player One"])!.runnerUp).toBeNull();
