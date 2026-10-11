@@ -4,6 +4,22 @@ import type { PlayerMatchStats } from "./scorePlayerMatch";
 
 export type StatsNoRole = Omit<PlayerMatchStats, "role">;
 
+// Roles for everyone in a set of history rows, using only those rows. Because the rows are already limited to
+// "before the match", a backtest of an older match never sees roles learned from later matches.
+export function inferRolesFromRows(
+  rows: { playerId: number; stats: StatsNoRole }[],
+  cfg: RoleInferenceConfig = ROLE_INFERENCE,
+): Map<number, Role> {
+  const byPlayer = new Map<number, StatsNoRole[]>();
+  for (const r of rows) byPlayer.set(r.playerId, [...(byPlayer.get(r.playerId) ?? []), r.stats]);
+  const roles = new Map<number, Role>();
+  for (const [id, stats] of byPlayer) {
+    const role = inferRole(stats, cfg);
+    if (role) roles.set(id, role);
+  }
+  return roles;
+}
+
 // Guesses a role from one player's match rows (already limited to the right time window).
 // Returns null when there is too little data: missing data stays missing, it is never invented.
 export function inferRole(rows: StatsNoRole[], cfg: RoleInferenceConfig = ROLE_INFERENCE): Role | null {

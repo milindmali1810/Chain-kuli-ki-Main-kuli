@@ -7,7 +7,7 @@ Milestone 1 is built and tested (90 passing tests). The scaffold is on GitHub an
 
 - GitHub: https://github.com/milindmali1810/Chain-kuli-ki-Main-kuli (public)
 - Vercel project: chain-kuli-ki-main-kuli, live at https://chain-kuli-ki-main-kuli.vercel.app
-- The live site now has the PIN screen (APP_PIN set in Vercel production, deployed and tested 11 Oct). Vercel is not connected to GitHub; deploy with `vercel deploy --prod` from the project folder.
+- The live site now has the PIN screen (APP_PIN set in Vercel production, deployed and tested 11 Oct). Vercel IS connected to GitHub (a -git-main- alias exists): every push to main redeploys automatically (about 20 seconds). `vercel deploy --prod` also works.
 - Supabase project: `dream11-optimizer` (ref hpjkyuziarokukhxabru, region ap-south-1, free plan) in org MOH. Empty, no tables yet. To make room on the 2-active-project free limit, the user's other project `dil-chahta-hai` was paused (data kept; restore from the Supabase dashboard).
 - .env.local (git-ignored) now holds APP_PIN, GEMINI_API_KEY (tested OK), APIFY_TOKEN (tested OK), NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (the sb_publishable_ key, tested OK). SUPABASE_SERVICE_ROLE_KEY is still EMPTY: the user must copy it from Supabase dashboard > Project Settings > API Keys. GEMINI_API_KEY and the Supabase keys are not yet set in Vercel env (add them when the app first needs them). The keys were pasted into chat, so the user should regenerate the Gemini and Apify keys after the build.
 
@@ -60,7 +60,7 @@ Milestone 1 is built and tested (90 passing tests). The scaffold is on GitHub an
 Indian first-class data is NOT in the database. Cricsheet has no Ranji/Duleep/Irani and no official free BCCI feed was found. Revisit near the end: (a) decide whether to try a scraper (check terms first), (b) or keep the answer "T20 evidence only: IPL + Syed Mushtaq Ali + T20Is". Raise this again before the viva notes and the Components Map.
 
 ## Open items
-0. Milind to paste SUPABASE_SERVICE_ROLE_KEY into .env.local (server-only). PIN 3030 is short and guessable; consider a longer one before the viva.
+0. DONE: SUPABASE_SERVICE_ROLE_KEY is in .env.local. The APP_PIN is a short 4-digit number and this repo is PUBLIC: consider a longer PIN before submission (set it in .env.local and in Vercel), and give the faculty the PIN in the submission note, not in the repo. After submission, regenerate the Gemini and Apify keys and the Supabase secret key (all three were pasted into chat).
 1. Three Dream11 screenshots (team-creation screen, in-app points page, backup screen) would settle the unverified rules.
 2. Confirm the demo league and that credits are entered manually.
 3. Cricsheet freshness (checked 11 Oct 2026 using recently_added_7_male_json.zip): the 6 Oct 2026 West Indies v India T20I (Lucknow, file 1529230) IS present. The 9 Oct match was not in that 7-day file; confirm against the full t20s_json.zip (22.9 MB, 5,775 matches) in M2.3. The series is a West Indies tour of India: ODIs on 30 Sep and 3 Oct, then T20Is from 6 Oct. Seed from older completed T20Is, labelled seeded, only if needed.

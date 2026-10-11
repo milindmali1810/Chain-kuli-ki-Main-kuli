@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { inferRole, type StatsNoRole } from "@/lib/inferRole";
+import { inferRole, inferRolesFromRows, type StatsNoRole } from "@/lib/inferRole";
 
 // Builds n match rows with the same pattern each time.
 function rows(
@@ -20,6 +20,23 @@ function rows(
     ],
   }));
 }
+
+describe("inferRolesFromRows (as-of: only the rows it is given)", () => {
+  const asRows = (playerId: number, stats: StatsNoRole[]) => stats.map((s) => ({ playerId, stats: s }));
+
+  it("roles come only from the supplied rows, so a later spell of bowling cannot change an earlier role", () => {
+    const early = asRows(1, rows(10, { batBalls: 25 })); // a pure batter up to the match date
+    expect(inferRolesFromRows(early).get(1)).toBe("BAT");
+    // If rows from AFTER the match were included he would look like an all-rounder: that is the leak we avoid.
+    const withFuture = [...early, ...asRows(1, rows(20, { batBalls: 12, bowlBalls: 18 }))];
+    expect(inferRolesFromRows(withFuture).get(1)).toBe("AR");
+  });
+
+  it("players with too little data get no role, and are simply absent from the map", () => {
+    const m = inferRolesFromRows([...asRows(1, rows(10, { batBalls: 25 })), ...asRows(2, rows(2, { batBalls: 25 }))]);
+    expect([...m.keys()]).toEqual([1]);
+  });
+});
 
 describe("inferRole", () => {
   it("too few matches: no role (never invented)", () => {

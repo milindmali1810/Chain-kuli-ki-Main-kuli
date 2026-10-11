@@ -8,9 +8,10 @@
 
 import { POINTS_PROFILES, DEFAULT_POINTS_PROFILE } from "../src/config/points";
 import { RUBRIC } from "../src/config/rubric";
-import { DEFAULT_RULES_PROFILE, RULES_PROFILES, type Role } from "../src/config/rules";
+import { DEFAULT_RULES_PROFILE, RULES_PROFILES } from "../src/config/rules";
 import { loadHistoryRows, monthsBefore, serverDb } from "../src/lib/db";
 import { seedCreditsFor } from "../src/lib/seedCredits";
+import { inferRolesFromRows } from "../src/lib/inferRole";
 import { predict, type PoolPlayer, type Prediction } from "../src/lib/predict";
 import { scorePlayerMatch, type PlayerMatchStats } from "../src/lib/scorePlayerMatch";
 import { selectTeam, type Candidate } from "../src/lib/selectTeam";
@@ -49,9 +50,8 @@ async function main() {
   const matchTeamIds: [number, number] = [match.team_a, match.team_b];
 
   const teamNames = new Map((await fetchAll<{ id: number; name: string }>(db, "teams", "id,name")).map((t) => [t.id, t.name]));
-  const people = await fetchAll<{ id: number; name: string; role: Role | null }>(db, "players", "id,name,role");
+  const people = await fetchAll<{ id: number; name: string }>(db, "players", "id,name");
   const names = new Map(people.map((p) => [p.id, p.name]));
-  const roles = new Map(people.filter((p) => p.role).map((p) => [p.id, p.role as Role]));
 
   const { data: actualLines, error: lineErr } = await db.from("player_match_lines").select("player_id, team_id, stats_json").eq("match_id", match.id);
   if (lineErr) throw new Error(lineErr.message);
@@ -61,6 +61,10 @@ async function main() {
   const rows = await loadHistoryRows(db, monthsBefore(date, WINDOW_MONTHS), date);
   console.log(`Match ${cricsheetId} on ${date}: ${teamNames.get(matchTeamIds[0])} v ${teamNames.get(matchTeamIds[1])}`);
   console.log(`History used: ${rows.length} rows from ${monthsBefore(date, WINDOW_MONTHS)} up to (not including) ${date}\n`);
+
+  // Roles are inferred AS OF the match date from those same rows (not read from the players table, which holds
+  // today's roles), so backtesting an older match cannot leak what a player did later.
+  const roles = inferRolesFromRows(rows);
 
   // ---- Predicted XI: each side's last N internationals ----
   const lastXIs = RUBRIC.availability.lastXIs.value;
