@@ -44,6 +44,9 @@ Other:
 
 Alternate profile "variant" (four +4, six +6, 25-run +4, 75-run +12, century +16) is stored but NOT default, because it is unclear which contest type it applies to.
 
+## B2. Second-source check (11 Oct 2026)
+Sportskeeda's T20 points page (last modified May 2021, third-party, not Dream11 itself) lists the same table as "standard": run 1, four 1, six 2, 30/50/100 bonuses 4/8/16, duck -2 for BAT/WK/AR, strike-rate and economy brackets, catch 8 (3-catch bonus 4), stumping and direct run out 12, indirect 6, playing XI 4, captain 2x and vice-captain 1.5x. It has NO 25-run or 75-run bonus, which is evidence that the "variant" profile is not a T20 table. Gaps in that page: minimum balls for strike rate, and its 50-59.99 penalty bracket is printed as "50 to 50.99" (likely a typo). Still not Dream11 itself, so the three screenshots remain the real fix. No free source for Dream11 credits or per-match Dream11 points was found (no API, no Apify actor, Kaggle "dream11 points" data is the creator's own formula).
+
 ## C. What stays unverified (shown in the dashboard as a banner)
 - per-team cap and role limits (strict profile used)
 - strike-rate penalty brackets, playing-XI points, backups

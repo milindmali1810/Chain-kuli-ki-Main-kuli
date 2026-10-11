@@ -65,12 +65,14 @@ export interface PointsProfile {
 
 const LOCKED = "docs/RULES_LOCKED.md section B";
 const GEMINI_ONLY = `${LOCKED}: only in the Gemini-generated rulebook`;
+// Second, independent source (third-party, last modified May 2021). Lists the same T20 table.
+const SPORTSKEEDA = `${LOCKED}: Gemini rulebook, and Sportskeeda T20 points page (May 2021) agrees`;
 
 const standard: PointsProfile = {
   id: "standard",
   description: "Default: four bonus +1, six bonus +2, milestones 30/50/100.",
   excludeSuperOver: sourced(true, "certain", "docs/RULES_LOCKED.md section A: Dream11 page"),
-  playingXI: sourced(4, "guessing", `${LOCKED}: an older source says +2`),
+  playingXI: sourced(4, "likely", `${LOCKED}: Sportskeeda T20 points page (May 2021) says +4; an older source says +2`),
   batting: {
     run: sourced(1, "likely", LOCKED),
     four: sourced(1, "likely", LOCKED),
@@ -91,9 +93,10 @@ const standard: PointsProfile = {
         { range: { gte: 130, lte: 150 }, points: sourced(2, "likely", LOCKED) },
       ],
       penalty: [
-        { range: { gte: 60, lte: 70 }, points: sourced(-2, "guessing", GEMINI_ONLY) },
-        { range: { gte: 50, lt: 60 }, points: sourced(-4, "guessing", GEMINI_ONLY) },
-        { range: { lt: 50 }, points: sourced(-6, "guessing", GEMINI_ONLY) },
+        { range: { gte: 60, lte: 70 }, points: sourced(-2, "likely", SPORTSKEEDA) },
+        // Sportskeeda prints this bracket as "50 to 50.99", which looks like a typo for 50 to 59.99.
+        { range: { gte: 50, lt: 60 }, points: sourced(-4, "guessing", `${SPORTSKEEDA}; its bracket text looks like a typo`) },
+        { range: { lt: 50 }, points: sourced(-6, "likely", SPORTSKEEDA) },
       ],
     },
   },
