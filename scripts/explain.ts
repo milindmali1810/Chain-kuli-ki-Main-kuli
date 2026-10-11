@@ -41,6 +41,8 @@ async function main() {
   const { data: recs, error: recErr } = await db.from("recommendations").select("*").eq("match_id", match.id).order("id");
   if (recErr) throw new Error(recErr.message);
   if (!recs?.length) throw new Error("No recommendations stored for this match. Run: npm run backtest -- --match " + cricsheetId);
+  // Several rubric versions may hold a recommendation: explain only the latest per stage (that is what the app shows).
+  const latestPerStage = [...new Map(recs.map((r) => [r.stage, r])).values()];
 
   const apiKey = process.env.GEMINI_API_KEY;
   const date = new Date(String(match.start_time));
@@ -54,7 +56,7 @@ async function main() {
   let replaced = 0;
   const allRejections: string[] = [];
 
-  for (const rec of recs) {
+  for (const rec of latestPerStage) {
     const { data: rows, error: rpErr } = await db
       .from("recommendation_players")
       .select("player_id, rank, expected_points, factors_json, players(name)")

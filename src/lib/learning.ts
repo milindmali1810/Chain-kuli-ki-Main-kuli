@@ -71,6 +71,8 @@ export interface VersionView {
   createdAt: string;
   calibration: Record<Role, number>;
   metrics: Metrics;
+  // The same measurement restricted to the matches the first version also predicted: a like-for-like comparison.
+  metricsSameMatches: Metrics;
 }
 
 export interface PendingView {
@@ -100,8 +102,11 @@ export async function getLearning(): Promise<LearningView> {
     loadActiveRubric(db),
   ]);
   const rowsOf = (id: number) => perVersion.find((v) => v.versionId === id);
-  const all = perVersion.flatMap((v) => v.rows);
-  const allRegrets = perVersion.flatMap((v) => v.regrets);
+  const baseline = [...perVersion].sort((a, b) => a.versionId - b.versionId)[0];
+  const baselineMatches = new Set((baseline?.rows ?? []).map((r) => r.matchId));
+  // The headline numbers describe the FIRST version only, so a later version's matches are not double counted.
+  const all = baseline?.rows ?? [];
+  const allRegrets = baseline?.regrets ?? [];
 
   return {
     allMetrics: computeMetrics(all, allRegrets),
@@ -115,6 +120,7 @@ export async function getLearning(): Promise<LearningView> {
         createdAt: v.created_at,
         calibration: Object.fromEntries(ROLES.map((role) => [role, cal[role]?.value ?? 1])) as Record<Role, number>,
         metrics: computeMetrics(r?.rows ?? [], r?.regrets ?? []),
+        metricsSameMatches: computeMetrics((r?.rows ?? []).filter((row) => baselineMatches.has(row.matchId)), []),
       };
     }),
     activeVersionId: active?.id ?? null,

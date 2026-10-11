@@ -9,7 +9,8 @@
 import { POINTS_PROFILES, DEFAULT_POINTS_PROFILE } from "../src/config/points";
 import { RUBRIC } from "../src/config/rubric";
 import { DEFAULT_RULES_PROFILE, RULES_PROFILES } from "../src/config/rules";
-import { loadHistoryRows, monthsBefore, serverDb } from "../src/lib/db";
+import type { Role } from "../src/config/rules";
+import { loadActiveRubric, loadHistoryRows, monthsBefore, serverDb } from "../src/lib/db";
 import { seedCreditsFor } from "../src/lib/seedCredits";
 import { inferRolesFromRows } from "../src/lib/inferRole";
 import { teamScore } from "../src/lib/teamScore";
@@ -50,6 +51,16 @@ async function main() {
   const date = String(match.start_time).slice(0, 10);
   const matchTeamIds: [number, number] = [match.team_a, match.team_b];
 
+  // The rubric version in force (starts as RUBRIC v1.0; a new one is created when Aryan accepts a learning proposal).
+  let active = await loadActiveRubric(db);
+  if (!active) {
+    const ins = await db.from("rubric_versions").insert({ config_json: RUBRIC, status: "active", reason: `initial ${RUBRIC.id}` }).select("id").single();
+    if (ins.error) throw new Error(`rubric_versions: ${ins.error.message}`);
+    active = { id: ins.data.id, cfg: RUBRIC };
+  }
+  const rubricCfg = active.cfg;
+  console.log(`Rubric version #${active.id} (${rubricCfg.id}); role corrections: ${Object.entries(rubricCfg.calibration).map(([r, c]) => `${r} x${c.value}`).join(", ")}`);
+
   const teamNames = new Map((await fetchAll<{ id: number; name: string }>(db, "teams", "id,name")).map((t) => [t.id, t.name]));
   const people = await fetchAll<{ id: number; name: string }>(db, "players", "id,name");
   const names = new Map(people.map((p) => [p.id, p.name]));
@@ -66,9 +77,12 @@ async function main() {
   // Roles are inferred AS OF the match date from those same rows (not read from the players table, which holds
   // today's roles), so backtesting an older match cannot leak what a player did later.
   const roles = inferRolesFromRows(rows);
+  // Roles typed by hand on the Data screen always win over inferred ones.
+  const { data: overrides } = await db.from("manual_overrides").select("entity_id, value").eq("entity_type", "player").eq("field", "role");
+  for (const o of overrides ?? []) if (["WK", "BAT", "AR", "BOWL"].includes(o.value)) roles.set(o.entity_id, o.value as Role);
 
   // ---- Predicted XI: each side's last N internationals ----
-  const lastXIs = RUBRIC.availability.lastXIs.value;
+  const lastXIs = rubricCfg.availability.lastXIs.value;
   const predictedPool: PoolPlayer[] = [];
   for (const teamId of matchTeamIds) {
     const teamRows = rows.filter((r) => r.leagueTier === "international" && r.teamId === teamId && r.stats.inPlayingXI);
@@ -80,7 +94,7 @@ async function main() {
     for (const r of teamRows) if (recentMatchIds.includes(r.matchId)) counts.set(r.playerId, (counts.get(r.playerId) ?? 0) + 1);
     for (const [playerId, n] of counts) {
       const pPlay = n / recentMatchIds.length;
-      if (pPlay >= RUBRIC.availability.provisionalMin.value) predictedPool.push({ playerId, teamId, pPlay });
+      if (pPlay >= rubricCfg.availability.provisionalMin.value) predictedPool.push({ playerId, teamId, pPlay });
     }
   }
   const confirmedPool: PoolPlayer[] = actualXI.map((l) => ({ playerId: l.player_id, teamId: l.team_id, pPlay: 1 }));
@@ -95,7 +109,7 @@ async function main() {
   if (credErr) throw new Error(`credits: ${credErr.message}`);
 
   // ---- Predictions ----
-  const common = { asOfDate: date, rows, roles, names, teamNames, matchTeamIds, venueId: match.venue_id as number | null, credits, rules, cfg: RUBRIC, points };
+  const common = { asOfDate: date, rows, roles, names, teamNames, matchTeamIds, venueId: match.venue_id as number | null, credits, rules, cfg: rubricCfg, points };
   const provisional = predict({ ...common, stage: "provisional", pool: predictedPool });
   const final = predict({ ...common, stage: "final", pool: confirmedPool });
 
@@ -158,20 +172,15 @@ async function main() {
   if (excl.length) console.log(`Excluded (unavailable data): ${[...new Map(excl.map((e) => [e.playerId, e])).values()].map((e) => `${e.name} (${e.reason})`).join("; ")}`);
 
   // ---- Store ----
-  let { data: rubric } = await db.from("rubric_versions").select("id").eq("status", "active").order("id", { ascending: false }).limit(1).maybeSingle();
-  if (!rubric) {
-    const ins = await db.from("rubric_versions").insert({ config_json: RUBRIC, status: "active", reason: `initial ${RUBRIC.id}` }).select("id").single();
-    if (ins.error) throw new Error(`rubric_versions: ${ins.error.message}`);
-    rubric = ins.data;
-  }
-
-  await db.from("recommendations").delete().eq("match_id", match.id); // regenerated below; cascades to recommendation_players
+  // Re-running replaces only THIS rubric version's recommendations for the match, so earlier versions stay
+  // available and accuracy can be compared before and after a learning change. Cascades to recommendation_players.
+  await db.from("recommendations").delete().eq("match_id", match.id).eq("rubric_version_id", active.id);
   for (const p of [provisional, final]) {
     if (!p.selection || !p.captains) continue;
     const rec = await db
       .from("recommendations")
       .insert({
-        match_id: match.id, rubric_version_id: rubric!.id, stage: p.stage, captain_id: p.captains.captainId, vc_id: p.captains.viceCaptainId,
+        match_id: match.id, rubric_version_id: active.id, stage: p.stage, captain_id: p.captains.captainId, vc_id: p.captains.viceCaptainId,
         // What the explanation layer needs, so "why the runner-up lost" comes from stored numbers:
         captain_scores_json: p.captains.scores,
         engine_notes_json: {

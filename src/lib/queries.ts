@@ -63,7 +63,8 @@ export async function listMatches(): Promise<MatchCard[]> {
       stages: {},
       actualSource: actualRows.length === 0 ? null : hasManual ? "dream11_manual" : "computed_from_scorecard",
     };
-    for (const rec of recs.filter((r) => r.match_id === m.id)) {
+    // Several rubric versions can hold a recommendation for the same match: the latest one is shown.
+    for (const rec of recs.filter((r) => r.match_id === m.id).sort((a, b) => a.id - b.id)) {
       const ps = (players ?? []).filter((p) => p.recommendation_id === rec.id);
       const ids = ps.map((p) => p.player_id);
       const predicted = teamScore(new Map(ps.map((p) => [p.player_id, Number(p.expected_points)])), ids, rec.captain_id, rec.vc_id, rules);
@@ -139,7 +140,7 @@ export async function getMatch(cricsheetId: string): Promise<MatchDetail | null>
   const [{ data: teams }, { data: ctx }, { data: recs }, { data: actual }, { data: xi }] = await Promise.all([
     db.from("teams").select("id, name"),
     db.from("match_context").select("weather_json, pitch_tags_json, pitch_report_text").eq("match_id", m.id).maybeSingle(),
-    db.from("recommendations").select("*").eq("match_id", m.id),
+    db.from("recommendations").select("*").eq("match_id", m.id).order("id"), // oldest first, so the latest version overwrites per stage
     db.from("actual_points").select("player_id, points, source").eq("match_id", m.id),
     db.from("predicted_xi").select("player_id, team_id, source").eq("match_id", m.id),
   ]);

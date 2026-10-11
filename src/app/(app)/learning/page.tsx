@@ -124,10 +124,19 @@ async function LearningView() {
       <section className="stack" aria-labelledby="ver-h">
         <h2 id="ver-h">Versions and accuracy</h2>
         <p className="muted">Each accepted change creates a new version. Every prediction records the version that made it, so you can compare accuracy before and after.</p>
+        {v.versions.length > 1 && (
+          <div className="banner" role="note">
+            <Icon name="alert" />
+            <p>
+              A later version is first measured on the same matches the correction was learned from, so its improvement looks better than it will on new matches.
+              The honest test is the next matches nobody has seen yet.
+            </p>
+          </div>
+        )}
         <div className="tablewrap">
           <table>
             <thead>
-              <tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Created</th><th scope="col">Role corrections</th><th scope="col">Players</th><th scope="col">Average error</th><th scope="col">Direction</th></tr>
+              <tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Created</th><th scope="col">Role corrections</th><th scope="col">Players</th><th scope="col">Average error</th><th scope="col">Error on the same matches as the first version</th><th scope="col">Direction</th></tr>
             </thead>
             <tbody>
               {v.versions.map((ver) => (
@@ -138,6 +147,7 @@ async function LearningView() {
                   <td className="num">{Object.entries(ver.calibration).filter(([, c]) => c !== 1).map(([r, c]) => `${r} ×${c}`).join(", ") || "none"}</td>
                   <td className="num">{ver.metrics.n}</td>
                   <td className="num">{ver.metrics.overall ? num(ver.metrics.overall.mae, 1) : "n/a"}</td>
+                  <td className="num">{ver.metricsSameMatches.overall ? num(ver.metricsSameMatches.overall.mae, 1) : "n/a"}</td>
                   <td>{ver.metrics.overall ? <BiasChip bias={ver.metrics.overall.bias} /> : "n/a"}</td>
                 </tr>
               ))}
