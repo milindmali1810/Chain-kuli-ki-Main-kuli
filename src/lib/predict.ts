@@ -195,11 +195,18 @@ export function predict(input: PredictInput): Prediction {
   const candidates = pool.map((p) => p.candidate);
   let selection = selectTeam(candidates, rules, { forcedIds: death.forcedIds });
   if (!selection && death.forcedIds.length > 0) {
-    notes.push("The guaranteed death-specialist slot made a legal team impossible; selected without it.");
     selection = selectTeam(candidates, rules);
+    if (selection) notes.push("The guaranteed death-specialist slot made a legal team impossible; selected without it.");
   }
   if (!selection) {
-    notes.push("No legal team can be built from this pool under the active rules.");
+    const perTeam = new Map<string, number>();
+    for (const c of candidates) perTeam.set(c.team, (perTeam.get(c.team) ?? 0) + 1);
+    const perRole = (["WK", "BAT", "AR", "BOWL"] as Role[]).map((r) => `${r} ${candidates.filter((c) => c.role === r).length}`);
+    notes.push(
+      `No legal team can be built from this pool under the active rules. Usable players: ${candidates.length} ` +
+        `(${[...perTeam].map(([t, n]) => `${t} ${n}`).join(", ") || "none"}; ${perRole.join(", ")}). ` +
+        `${excluded.length} player(s) were left out for missing data: add their roles or credits on the manual data screen and re-run.`,
+    );
     return {
       stage: input.stage, asOfDate: input.asOfDate, rulesProfile: rules.id, rubricVersion: cfg.id, pool, excluded, selected: [],
       selection: null, captains: null, validation: null, pitch, teamForm, deathLog: death.log, notes, unavailableFactors: UNAVAILABLE_FACTORS,
