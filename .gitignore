@@ -42,3 +42,6 @@ next-env.d.ts
 
 # keep the names-only template in git
 !.env.example
+
+.vercel
+.env*
