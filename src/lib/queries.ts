@@ -37,12 +37,14 @@ export interface MatchCard {
   yourTeam?: { total: number | null; reportedTotal: number | null; unedited: boolean };
   stages: { final?: StageSummary; provisional?: StageSummary };
   actualSource: "dream11_manual" | "computed_from_scorecard" | null;
+  upcoming?: boolean; // added by hand, no team recommended yet
 }
 
 export async function listMatches(): Promise<MatchCard[]> {
   const db = serverDb();
   const { data: recs } = await db.from("recommendations").select("id, match_id, stage, captain_id, vc_id, engine_notes_json");
-  if (!recs?.length) return [];
+  const upcoming = await listUpcomingWithoutTeam(db, (recs ?? []).map((r) => r.match_id));
+  if (!recs?.length) return upcoming;
   const matchIds = [...new Set(recs.map((r) => r.match_id))];
   const [{ data: matches }, { data: teams }, { data: players }, { data: actual }, { data: userTeams }] = await Promise.all([
     db.from("matches").select("id, cricsheet_match_id, start_time, team_a, team_b, venues(name, city)").in("id", matchIds),
@@ -88,7 +90,28 @@ export async function listMatches(): Promise<MatchCard[]> {
     }
     cards.push(card);
   }
-  return cards.sort((a, b) => b.date.localeCompare(a.date) || b.cricsheetId.localeCompare(a.cricsheetId));
+  return [...upcoming, ...cards].sort((a, b) => b.date.localeCompare(a.date) || b.cricsheetId.localeCompare(a.cricsheetId));
+}
+
+// Matches Aryan added by hand that have no recommended team yet (the squad and credits come in the next steps).
+async function listUpcomingWithoutTeam(db: ReturnType<typeof serverDb>, haveTeam: number[]): Promise<MatchCard[]> {
+  const { data } = await db
+    .from("matches")
+    .select("id, cricsheet_match_id, start_time, team_a, team_b, venues(name, city)")
+    .eq("data_origin", "manual");
+  const rows = (data ?? []).filter((m) => !haveTeam.includes(m.id));
+  if (rows.length === 0) return [];
+  const { data: teams } = await db.from("teams").select("id, name");
+  const teamName = new Map((teams ?? []).map((t) => [t.id, t.name as string]));
+  return rows.map((m) => ({
+    cricsheetId: m.cricsheet_match_id,
+    date: String(m.start_time).slice(0, 10),
+    teams: [teamName.get(m.team_a) ?? "?", teamName.get(m.team_b) ?? "?"] as [string, string],
+    venue: venueLabel((m.venues as unknown as Row | null)?.name, (m.venues as unknown as Row | null)?.city),
+    stages: {},
+    actualSource: null,
+    upcoming: true,
+  }));
 }
 
 // ---------- One match ----------

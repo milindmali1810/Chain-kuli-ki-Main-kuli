@@ -25,9 +25,10 @@ function MatchTile({ m }: { m: MatchCard }) {
     <Link href={`/matches/${m.cricsheetId}`} className="card match-card" aria-label={`${m.teams[0]} versus ${m.teams[1]}, ${formatDate(m.date)}`}>
       <div className="row-between">
         <h2>{m.teams[0]} v {m.teams[1]}</h2>
-        {played ? <span className="chip good"><Icon name="check" size={14} />Played</span> : <span className="chip warn">Predicted</span>}
+        {m.upcoming ? <span className="chip">Upcoming</span> : played ? <span className="chip good"><Icon name="check" size={14} />Played</span> : <span className="chip warn">Predicted</span>}
       </div>
       <p className="muted">{formatDate(m.date)} · {m.venue}</p>
+      {m.upcoming && <p className="muted">No team yet. The squad and credits are the next steps.</p>}
       {stage && (
         <div className="scoreline" style={{ marginTop: 4 }}>
           <Score label={`predicted (${which})`} value={num(stage.predicted)} />
@@ -85,7 +86,10 @@ export default function MatchesPage() {
       </div>
       <div className="banner info" role="note">
         <Icon name="info" />
-        <p>These matches have already been played. Each prediction uses only data from before the match, so it is a fair test.</p>
+        <p>Matches marked Played are backtests: each prediction uses only data from before the match, so it is a fair test. Matches marked Upcoming are ones you added yourself.</p>
+      </div>
+      <div className="row">
+        <Link href="/matches/new" className="btn primary">Add an upcoming match</Link>
       </div>
       <Suspense fallback={<ListSkeleton />}>
         <MatchList />

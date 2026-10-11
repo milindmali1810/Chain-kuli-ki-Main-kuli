@@ -92,7 +92,7 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
         </div>
         <div className="row">
           {match.hasActual ? <span className="chip good"><Icon name="check" size={14} />Played</span> : <span className="chip warn">Not played yet</span>}
-          <span className="chip">Credits are seeded, not Dream11&apos;s own</span>
+          {!match.cricsheetId.startsWith("live-") && <span className="chip">Credits are seeded, not Dream11&apos;s own</span>}
         </div>
         <div className="row">
           <a href="#edit" className="btn primary">Edit and confirm my team</a>
@@ -101,7 +101,14 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
       </div>
 
       {!view ? (
-        <div className="card empty"><h2>No team for this match</h2><p className="muted">Run a backtest to create one.</p></div>
+        <div className="card empty">
+          <h2>No team for this match yet</h2>
+          <p className="muted">
+            {match.cricsheetId.startsWith("live-")
+              ? "This upcoming match is saved. Next steps: add the squad, the playing XI at the toss and the real Dream11 credits. Then the agent can pick a team."
+              : "Run a backtest to create one."}
+          </p>
+        </div>
       ) : (
         <>
           {both && (
