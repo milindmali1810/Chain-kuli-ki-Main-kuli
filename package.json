@@ -10,7 +10,8 @@
     "test": "vitest run --passWithNoTests",
     "ingest:cricsheet": "tsx --env-file=.env.local scripts/ingest-cricsheet.ts",
     "infer:roles": "tsx --env-file=.env.local scripts/infer-roles.ts",
-    "fetch:weather": "tsx --env-file=.env.local scripts/fetch-weather.ts"
+    "fetch:weather": "tsx --env-file=.env.local scripts/fetch-weather.ts",
+    "seed:credits": "tsx --env-file=.env.local scripts/seed-credits.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
