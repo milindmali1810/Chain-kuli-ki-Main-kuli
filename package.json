@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run --passWithNoTests",
-    "ingest:cricsheet": "tsx --env-file=.env.local scripts/ingest-cricsheet.ts"
+    "ingest:cricsheet": "tsx --env-file=.env.local scripts/ingest-cricsheet.ts",
+    "infer:roles": "tsx --env-file=.env.local scripts/infer-roles.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
