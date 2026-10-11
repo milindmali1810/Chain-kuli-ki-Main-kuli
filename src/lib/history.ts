@@ -2,6 +2,7 @@ import { DEFAULT_POINTS_PROFILE, POINTS_PROFILES, type PointsProfile } from "@/c
 import type { Role } from "@/config/rules";
 import { scorePlayerMatch } from "./scorePlayerMatch";
 import type { StatsNoRole } from "./inferRole";
+import type { ParsedLine } from "./cricsheet";
 
 // One player's stats row for one past match, as stored in player_match_lines.
 export interface HistoryRow {
@@ -12,6 +13,7 @@ export interface HistoryRow {
   teamId: number | null;
   venueId: number | null;
   stats: StatsNoRole;
+  phases?: ParsedLine["phases"]; // powerplay/middle/death splits, regular innings only
 }
 
 export interface PointsEntry {
