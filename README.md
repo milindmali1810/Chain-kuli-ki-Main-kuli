@@ -12,12 +12,19 @@ consistently wrong.
 
 **Code picks and checks; Gemini only explains.** Team selection (an exact search), the rules validator and the points
 calculator are plain TypeScript. Gemini Flash receives the engine's numbers and writes the explanation text. It never picks a
-player and never checks a rule. The Claude API is not used anywhere in the product. (Status: the engine, validator and
-scorer are built and tested; the Gemini explanation layer is the next milestone.)
+player and never checks a rule. The Claude API is not used anywhere in the product. A guard in plain code rejects any
+sentence whose numbers are not in the facts the engine produced, and plain templates replace rejected sentences.
 
 Rules and points tables are **data** (`src/config/`), each value tagged with its source and how sure we are
 (certain / likely / guessing / conflict / unverified). The default team rules are the strict profile (max 7 per side,
 WK 1-4, BAT 3-6, AR 1-4, BOWL 3-6): a team valid under it is valid under the looser reading too.
+
+## What you can do in the app
+
+- **Matches:** cards with predicted vs actual team score for each backtested match.
+- **Match view:** Final (confirmed XI) and Provisional (predicted XI) teams, rules check, credits, pitch and weather, paired predicted/actual bars, the reason for every pick, the captain and vice-captain reasons, and a form to enter the real Dream11 points.
+- **Learning:** where the agent is consistently wrong (by role and pitch type), proposed corrections that Aryan accepts or rejects, and accuracy per rubric version.
+- **Data:** roles for players the agent would not guess. **Guide:** how it works, plus the [Components map](docs/COMPONENTS_MAP.md).
 
 ## Folders
 
@@ -46,7 +53,12 @@ npm run ingest:cricsheet -- --dataset t20s   # also: --dataset ipl, --dataset sm
 npm run infer:roles -- --before 2026-10-06
 npm run fetch:weather -- --match 1529230
 npm run backtest -- --match 1529230          # predict a played match from earlier data, compare with the scorecard
+npm run explain -- --match 1529230           # Gemini writes the reasons; a guard checks every number
+npm run calibrate                            # find consistent errors and store proposals for Aryan to accept
+npm run gen:map                              # regenerate docs/COMPONENTS_MAP.md
 ```
+
+More documents: [viva notes](docs/VIVA_NOTES.md), [demo script](docs/DEMO_SCRIPT.md), [handoff](docs/HANDOFF.md), [design system](design-system/match-day-optimizer/MASTER.md).
 
 ## Honest limits
 

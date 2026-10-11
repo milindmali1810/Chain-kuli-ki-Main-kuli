@@ -33,6 +33,10 @@ export default function GuidePage() {
         <p><strong>The one rule that matters:</strong> code picks and checks, Gemini only explains. The AI never chooses a player and never checks a rule.</p>
       </div>
 
+      <div className="row">
+        <a href="/guide/map" className="btn">Open the components map</a>
+      </div>
+
       <section className="stack" aria-labelledby="how-h">
         <h2 id="how-h">How a recommendation is made</h2>
         <ol className="stack" style={{ listStyle: "none", margin: 0, padding: 0 }}>

@@ -14,7 +14,8 @@
     "seed:credits": "tsx --env-file=.env.local scripts/seed-credits.ts",
     "backtest": "tsx --env-file=.env.local scripts/run-backtest.ts",
     "explain": "tsx --env-file=.env.local scripts/explain.ts",
-    "calibrate": "tsx --env-file=.env.local scripts/calibrate.ts"
+    "calibrate": "tsx --env-file=.env.local scripts/calibrate.ts",
+    "gen:map": "tsx scripts/gen-components-map.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
