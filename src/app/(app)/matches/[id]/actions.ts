@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { serverDb } from "@/lib/db";
 import { loadEditorData } from "@/lib/editor";
+import { learnAfterPoints } from "@/lib/learning";
 import { PIN_COOKIE, isValidToken } from "@/lib/pin";
 
 export interface SaveState {
@@ -104,5 +105,16 @@ export async function saveActualPoints(_prev: SaveState, formData: FormData): Pr
   revalidatePath(`/matches/${cricsheetId}`);
   revalidatePath("/learning");
   const parts = [rows.length ? `${rows.length} player${rows.length === 1 ? "" : "s"}` : null, reportedTotal !== null ? "the Dream11 team total" : null].filter(Boolean);
-  return { ok: true, message: `Saved ${parts.join(" and ")}. These real Dream11 numbers now count in the comparison.`, errors: {}, values };
+
+  // The learning loop: the agent re-checks how wrong it was and (in automatic mode) updates itself for the next match.
+  // A problem here must never undo or hide a successful save.
+  let learned = "";
+  try {
+    const outcome = await learnAfterPoints(`match ${cricsheetId}`, db);
+    learned = ` ${outcome.message}`;
+    revalidatePath("/learning");
+  } catch {
+    learned = " The agent could not update itself just now; you can run the check from the Learning screen.";
+  }
+  return { ok: true, message: `Saved ${parts.join(" and ")}.${learned}`, errors: {}, values };
 }

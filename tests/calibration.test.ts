@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_LEARNING, computeMetrics, proposeCalibration, type CompareRow } from "@/lib/calibration";
+import { AUTO_LEARNING, DEFAULT_LEARNING, computeMetrics, proposeCalibration, type CompareRow } from "@/lib/calibration";
 
 const row = (matchId: number, role: CompareRow["role"], predicted: number, actual: number, pitch = "NEUTRAL"): CompareRow => ({ matchId, role, predicted, actual, pitch });
 
@@ -89,6 +89,31 @@ describe("proposeCalibration", () => {
   });
 
   it("the defaults match the rubric: 20 rows, 5% dead zone, 20% max step", () => {
-    expect(DEFAULT_LEARNING).toMatchObject({ minRows: 20, minShift: 0.05, maxStep: 0.2 });
+    expect(DEFAULT_LEARNING).toMatchObject({ minRows: 20, minShift: 0.05, maxStep: 0.2, rate: 1 });
+  });
+
+  it("automatic mode moves only half of the suggested step: a 10% over-prediction becomes x0.95, not x0.9", () => {
+    const [p] = proposeCalibration(computeMetrics(many("BAT", 20, 50, 45)), current, AUTO_LEARNING);
+    expect(p.newValue).toBe(0.95);
+  });
+
+  it("automatic mode is also capped: predicted 50, actual 10 would be x0.2, the 20% cap makes it x0.8, half of that is x0.9", () => {
+    const [p] = proposeCalibration(computeMetrics(many("BAT", 20, 50, 10)), current, AUTO_LEARNING);
+    expect(p.newValue).toBe(0.9);
+  });
+
+  it("a correction can never leave the safe range of 0.6 to 1.4, however many cycles pile up", () => {
+    const [low] = proposeCalibration(computeMetrics(many("BAT", 20, 50, 10)), { ...current, BAT: 0.62 });
+    expect(low.newValue).toBe(0.6);
+    const [high] = proposeCalibration(computeMetrics(many("BOWL", 20, 20, 60)), { ...current, BOWL: 1.38 });
+    expect(high.newValue).toBe(1.4);
+  });
+
+  it("already at the edge of the safe range and still being pushed that way: no proposal at all", () => {
+    expect(proposeCalibration(computeMetrics(many("BAT", 20, 50, 10)), { ...current, BAT: 0.6 })).toEqual([]);
+  });
+
+  it("automatic mode waits for enough matches: the default asks for 3", () => {
+    expect(AUTO_LEARNING.minMatchesAuto).toBe(3);
   });
 });

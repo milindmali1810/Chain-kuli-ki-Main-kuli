@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RubricConfig } from "@/config/rubric";
 import type { Role } from "@/config/rules";
 import { ROLES } from "@/config/rules";
-import { DEFAULT_LEARNING, computeMetrics, proposeCalibration, type CompareRow, type Metrics, type Proposal } from "./calibration";
+import { AUTO_LEARNING, DEFAULT_LEARNING, computeMetrics, proposeCalibration, type CompareRow, type LearningSettings, type Metrics, type Proposal } from "./calibration";
 import { loadActiveRubric, serverDb } from "./db";
 
 // Server-side learning loop: compare predicted with actual, propose corrections, and (when a person accepts)
@@ -91,12 +91,15 @@ export interface LearningView {
   pending: PendingView[];
   settings: typeof DEFAULT_LEARNING;
   rowsUnderActive: number;
+  mode: LearningMode;
+  canUndo: boolean; // the active version was created by a learning change and has a parent to go back to
+  realDream11Rows: number; // compared players whose actual points were typed by Aryan from Dream11
 }
 
 export async function getLearning(): Promise<LearningView> {
   const db = serverDb();
   const [{ data: versions }, { data: pending }, perVersion, active] = await Promise.all([
-    db.from("rubric_versions").select("id, status, reason, created_at, config_json").order("id"),
+    db.from("rubric_versions").select("id, status, reason, created_at, config_json, parent_id").order("id"),
     db.from("pending_adjustments").select("*").eq("status", "pending").order("id"),
     loadCompareRows(db),
     loadActiveRubric(db),
@@ -132,18 +135,25 @@ export async function getLearning(): Promise<LearningView> {
       })),
     settings: DEFAULT_LEARNING,
     rowsUnderActive: (active && rowsOf(active.id)?.rows.length) || 0,
+    mode: await getLearningMode(db),
+    canUndo: (versions ?? []).some((v) => v.id === active?.id && v.parent_id !== null),
+    realDream11Rows: await countRealRows(db),
   };
 }
 
 // Recompute the evidence for the active version and replace its pending proposals.
-export async function runCalibration(db: SupabaseClient = serverDb()): Promise<{ metrics: Metrics; proposals: Proposal[]; versionId: number }> {
+export async function runCalibration(
+  db: SupabaseClient = serverDb(),
+  settings: LearningSettings = DEFAULT_LEARNING,
+  trigger: string = "manual",
+): Promise<{ metrics: Metrics; proposals: Proposal[]; versionId: number }> {
   const active = await loadActiveRubric(db);
   if (!active) throw new Error("No active rubric version. Run a backtest first.");
   const perVersion = await loadCompareRows(db);
   const mine = perVersion.find((v) => v.versionId === active.id);
   const metrics = computeMetrics(mine?.rows ?? [], mine?.regrets ?? []);
   const current = Object.fromEntries(ROLES.map((r) => [r, active.cfg.calibration[r].value])) as Record<Role, number>;
-  const proposals = proposeCalibration(metrics, current, DEFAULT_LEARNING);
+  const proposals = proposeCalibration(metrics, current, settings);
 
   await db.from("pending_adjustments").delete().eq("rubric_version_id", active.id).eq("status", "pending");
   if (proposals.length) {
@@ -155,12 +165,15 @@ export async function runCalibration(db: SupabaseClient = serverDb()): Promise<{
     );
     if (error) throw new Error(`pending_adjustments: ${error.message}`);
   }
-  await db.from("calibration_runs").insert({ rubric_version_id: active.id, metrics_json: metrics });
+  await db.from("calibration_runs").insert({ rubric_version_id: active.id, metrics_json: { ...metrics, trigger, rate: settings.rate } });
   return { metrics, proposals, versionId: active.id };
 }
 
 // Accept: the pending proposals become a NEW rubric version (the old one is kept, marked retired).
-export async function acceptPending(db: SupabaseClient = serverDb()): Promise<{ newVersionId: number } | null> {
+export async function acceptPending(
+  db: SupabaseClient = serverDb(),
+  opts: { auto?: boolean; note?: string } = {},
+): Promise<{ newVersionId: number } | null> {
   const active = await loadActiveRubric(db);
   if (!active) return null;
   const { data: pending } = await db.from("pending_adjustments").select("*").eq("rubric_version_id", active.id).eq("status", "pending");
@@ -175,10 +188,11 @@ export async function acceptPending(db: SupabaseClient = serverDb()): Promise<{ 
     next.calibration[role] = {
       value: Number(p.new_value),
       status: "likely",
-      source: `learning loop, accepted by Aryan on ${today}: ${(p.evidence_json as Row)?.plainEnglish ?? ""}`,
+      source: `learning loop, ${opts.auto ? "applied automatically" : "accepted by Aryan"} on ${today}: ${(p.evidence_json as Row)?.plainEnglish ?? ""}`,
     };
   }
-  const reason = `Accepted learning-loop proposal: ${pending.map((p) => `${p.parameter} ${p.old_value} to ${p.new_value}`).join("; ")}`;
+  const changes = pending.map((p) => `${p.parameter} ${p.old_value} to ${p.new_value}`).join("; ");
+  const reason = opts.auto ? `Automatic learning${opts.note ? ` (${opts.note})` : ""}: ${changes}` : `Accepted learning-loop proposal: ${changes}`;
   const { data: created, error } = await db
     .from("rubric_versions")
     .insert({ parent_id: active.id, config_json: next, status: "active", reason })
@@ -195,4 +209,74 @@ export async function rejectPending(db: SupabaseClient = serverDb()): Promise<nu
   if (!active) return 0;
   const { data } = await db.from("pending_adjustments").update({ status: "rejected" }).eq("rubric_version_id", active.id).eq("status", "pending").select("id");
   return data?.length ?? 0;
+}
+
+// ---------- Automatic learning ----------
+export type LearningMode = "auto" | "ask";
+
+export async function getLearningMode(db: SupabaseClient = serverDb()): Promise<LearningMode> {
+  const { data } = await db.from("app_settings").select("value").eq("key", "learning_mode").maybeSingle();
+  return data?.value === "ask" ? "ask" : "auto"; // automatic is the default
+}
+
+export async function setLearningMode(mode: LearningMode, db: SupabaseClient = serverDb()): Promise<void> {
+  await db.from("app_settings").upsert({ key: "learning_mode", value: mode, updated_at: new Date().toISOString() }, { onConflict: "key" });
+}
+
+export interface LearningOutcome {
+  mode: LearningMode;
+  comparedPlayers: number;
+  matches: number;
+  applied: boolean;
+  newVersionId: number | null;
+  proposals: Proposal[];
+  message: string; // plain English, shown to Aryan right after he saves points
+}
+
+// Runs right after Aryan saves a match's points. It re-checks how wrong the agent was and, in automatic mode, applies a
+// small safe correction as a NEW rubric version that the next prediction will use. In "ask" mode it only stores proposals.
+// It only learns from matches predicted under the CURRENT version, so a match is never learned from twice.
+export async function learnAfterPoints(matchLabel: string, db: SupabaseClient = serverDb()): Promise<LearningOutcome> {
+  const mode = await getLearningMode(db);
+  const settings = mode === "auto" ? AUTO_LEARNING : DEFAULT_LEARNING;
+  const { metrics, proposals } = await runCalibration(db, settings, `points saved for ${matchLabel}`);
+  const base = { mode, comparedPlayers: metrics.n, matches: metrics.matches, proposals };
+
+  if (proposals.length === 0) {
+    const need = metrics.n < settings.minRows
+      ? ` It needs about ${settings.minRows} compared players before it changes anything, and has ${metrics.n}.`
+      : " No role is consistently off, so nothing needs changing.";
+    return { ...base, applied: false, newVersionId: null, message: `The agent checked its predictions against your points.${need}` };
+  }
+  if (mode === "ask") {
+    return { ...base, applied: false, newVersionId: null, message: `The agent found ${proposals.length} pattern(s) and is waiting for you on the Learning screen.` };
+  }
+  if (metrics.matches < settings.minMatchesAuto) {
+    return {
+      ...base, applied: false, newVersionId: null,
+      message: `The agent noticed ${proposals.length} pattern(s) but is waiting for evidence from at least ${settings.minMatchesAuto} matches before changing anything automatically (it has ${metrics.matches}).`,
+    };
+  }
+  const done = await acceptPending(db, { auto: true, note: `after ${matchLabel}, ${metrics.n} players across ${metrics.matches} matches` });
+  if (!done) return { ...base, applied: false, newVersionId: null, message: "The agent found patterns but could not apply them." };
+  return {
+    ...base, applied: true, newVersionId: done.newVersionId,
+    message: `The agent learned from your points and updated its rubric (version #${done.newVersionId}): ${proposals.map((p) => `${p.role} x${p.newValue}`).join(", ")}. The next match uses it. You can undo this on the Learning screen.`,
+  };
+}
+
+// Undo: go back to the parent version. The undone version is kept (marked retired) so the history stays complete.
+export async function revertLastChange(db: SupabaseClient = serverDb()): Promise<number | null> {
+  const { data: active } = await db.from("rubric_versions").select("id, parent_id, reason").eq("status", "active").order("id", { ascending: false }).limit(1).maybeSingle();
+  if (!active?.parent_id) return null;
+  await db.from("rubric_versions").update({ status: "retired", reason: `${active.reason ?? "Learning change"} (undone by Aryan)` }).eq("id", active.id);
+  await db.from("rubric_versions").update({ status: "active" }).eq("id", active.parent_id);
+  await db.from("pending_adjustments").delete().eq("rubric_version_id", active.parent_id).eq("status", "pending");
+  return active.parent_id;
+}
+
+// How many stored actual-points rows were typed by Aryan from Dream11 (as opposed to calculated from the scorecard).
+async function countRealRows(db: SupabaseClient): Promise<number> {
+  const { count } = await db.from("actual_points").select("player_id", { count: "exact", head: true }).eq("source", "dream11_manual");
+  return count ?? 0;
 }

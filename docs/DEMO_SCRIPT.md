@@ -33,7 +33,9 @@ Record on a laptop at normal width, then show the phone view for 15 seconds at t
 - Open Learning: matches compared, average error, over- or under-prediction.
 - "It found all-rounders were over-predicted by about 12 points across 42 players." Show the by-role table.
 - Show the Versions table: version 1 and version 2, and the like-for-like error column. Read the amber note: the first improvement is measured on the same matches it learned from, so the honest test is new matches.
-- Show a pending proposal and click **Accept** (or explain that it only changes if Aryan accepts, capped at 20% per step).
+- Show the "How the agent learns" card: Automatic vs Ask me first, and the **Undo this change** button.
+- Live moment (optional): on the match screen change one player's points and save. The banner says the agent updated its rubric (new version number) and the Learning screen shows the new version. Then click **Undo this change** and delete the test entry afterwards.
+- In Ask-me-first mode: show a pending proposal and click **Accept** (changes are capped at 20% per step).
 
 ## 3:40 to 4:00 — Close
 - Open Guide and the Components map for two seconds: "Every part, from trigger to output."

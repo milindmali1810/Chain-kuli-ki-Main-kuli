@@ -67,9 +67,18 @@ export interface LearningSettings {
   minRoleRows: number; // a role needs this many rows of its own
   minShift: number; // ignore errors smaller than this share (5% means 0.05)
   maxStep: number; // one cycle may move a value by at most this share (20% means 0.2)
+  rate: number; // 1 = move the whole suggested step; 0.5 = half of it (automatic mode)
+  minFactor: number; // a role correction never goes below this...
+  maxFactor: number; // ...or above this
+  minMatchesAuto: number; // automatic mode waits for this many matches of evidence before changing anything
 }
 
-export const DEFAULT_LEARNING: LearningSettings = { minRows: 20, minRoleRows: 8, minShift: 0.05, maxStep: 0.2 };
+export const DEFAULT_LEARNING: LearningSettings = {
+  minRows: 20, minRoleRows: 8, minShift: 0.05, maxStep: 0.2, rate: 1, minFactor: 0.6, maxFactor: 1.4, minMatchesAuto: 3,
+};
+
+// Automatic mode: the same rules, but half steps.
+export const AUTO_LEARNING: LearningSettings = { ...DEFAULT_LEARNING, rate: 0.5 };
 
 export interface Proposal {
   parameter: string; // e.g. "calibration.BAT"
@@ -95,9 +104,12 @@ export function proposeCalibration(
     if (s.n < settings.minRoleRows || s.meanPredicted <= 0) continue;
     const ratio = s.meanActual / s.meanPredicted;
     if (Math.abs(ratio - 1) < settings.minShift) continue;
-    const step = Math.max(1 - settings.maxStep, Math.min(1 + settings.maxStep, ratio));
+    const capped = Math.max(1 - settings.maxStep, Math.min(1 + settings.maxStep, ratio));
+    // `rate` below 1 moves only part of the way (automatic mode uses half steps, so it cannot over-swing).
+    const step = 1 + (capped - 1) * settings.rate;
     const oldValue = current[role];
-    const newValue = Math.round(oldValue * step * 1000) / 1000;
+    // A correction is never allowed outside the safe range, however much evidence there is.
+    const newValue = Math.round(Math.max(settings.minFactor, Math.min(settings.maxFactor, oldValue * step)) * 1000) / 1000;
     if (newValue === oldValue) continue;
     const pct = Math.round(Math.abs(newValue / oldValue - 1) * 100);
     out.push({

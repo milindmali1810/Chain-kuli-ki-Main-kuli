@@ -101,12 +101,12 @@ export const ACTORS: Actor[] = [
     name: "Learning loop",
     kind: "Deterministic maths plus a human decision",
     cells: {
-      Trigger: "After actual points exist: the Look for patterns button or npm run calibrate",
+      Trigger: "Aryan saves a match's points (automatic mode), or the Look for patterns button, or npm run calibrate",
       Input: "Predicted and actual points for every player in every final team",
-      Context: "Needs about 20 compared players; a role needs enough rows of its own; one cycle moves a value by at most 20%",
-      Processing: "Average error and bias by role and by pitch type; proposes a per-role correction factor",
+      Context: "Needs about 20 compared players and 3 matches; a role needs enough rows of its own; one cycle moves a value by at most 20%, and automatic mode applies half of that, inside a safe range of 0.6 to 1.4",
+      Processing: "Average error and bias by role and by pitch type; proposes a per-role correction factor; in automatic mode applies it as a new rubric version, in ask-first mode waits for Aryan",
       AI: NONE,
-      Output: "Pending proposals; on acceptance a new rubric version; accuracy shown per version",
+      Output: "A new rubric version the next match uses (undoable), or pending proposals; accuracy shown per version",
     },
   },
 ];

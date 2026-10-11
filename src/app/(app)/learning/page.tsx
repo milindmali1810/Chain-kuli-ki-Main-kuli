@@ -4,7 +4,7 @@ import { Icon } from "@/components/icons";
 import type { GroupStat } from "@/lib/calibration";
 import { ROLE_LABEL, formatDate, num } from "@/lib/format";
 import { getLearning, type LearningView } from "@/lib/learning";
-import { acceptChanges, checkForPatterns, rejectChanges } from "./actions";
+import { acceptChanges, checkForPatterns, chooseLearningMode, rejectChanges, undoLastChange } from "./actions";
 
 export const metadata = { title: "Learning" };
 
@@ -84,6 +84,41 @@ function Proposals({ v }: { v: LearningView }) {
   );
 }
 
+function ModeCard({ v }: { v: LearningView }) {
+  const active = v.versions.find((x) => x.id === v.activeVersionId);
+  return (
+    <section className="card stack" aria-labelledby="mode-h">
+      <h2 id="mode-h">How the agent learns</h2>
+      <p className="muted">
+        Every time you save a match&apos;s points, the agent compares what it predicted with what happened. It only learns from matches it predicted under its
+        <strong> current</strong> version, so a match is never counted twice, and the next match always uses the latest version.
+      </p>
+      <form action={chooseLearningMode} className="row">
+        <div className="seg" role="group" aria-label="Learning mode">
+          <button type="submit" name="mode" value="auto" aria-pressed={v.mode === "auto"} data-on={v.mode === "auto"}>Automatic</button>
+          <button type="submit" name="mode" value="ask" aria-pressed={v.mode === "ask"} data-on={v.mode === "ask"}>Ask me first</button>
+        </div>
+      </form>
+      <p>
+        {v.mode === "auto"
+          ? "Automatic: after you save points, the agent applies a small correction by itself (half of what the data suggests, never more than 20% at a time, and only once it has seen at least 3 matches). Every change is a new version you can undo."
+          : "Ask me first: the agent only proposes changes below. Nothing changes until you accept."}
+      </p>
+      <p className="muted">
+        Real Dream11 points you have entered so far: <span className="num">{v.realDream11Rows}</span> {v.realDream11Rows === 1 ? "player" : "players"}. The rest of the comparison uses points calculated from the scorecard.
+      </p>
+      {v.canUndo && active && (
+        <div className="card" style={{ background: "var(--surface-2)" }}>
+          <p><strong>Current version #{active.id}.</strong> {active.reason}</p>
+          <form action={undoLastChange} style={{ marginTop: 8 }}>
+            <button type="submit" className="btn">Undo this change</button>
+          </form>
+        </div>
+      )}
+    </section>
+  );
+}
+
 async function LearningView() {
   await connection(); // read live data per visit; never run this while the app is being built
   const v = await getLearning();
@@ -91,9 +126,12 @@ async function LearningView() {
 
   if (m.n === 0) {
     return (
-      <div className="card empty">
-        <h2>Nothing to learn from yet</h2>
-        <p className="muted">Once a match has predicted and actual points, the agent compares them here.</p>
+      <div className="stack-lg">
+        <ModeCard v={v} />
+        <div className="card empty">
+          <h2>Nothing to learn from yet</h2>
+          <p className="muted">Once a match has predicted and actual points, the agent compares them here.</p>
+        </div>
       </div>
     );
   }
@@ -101,6 +139,7 @@ async function LearningView() {
   const overall = m.overall!;
   return (
     <div className="stack-lg">
+      <ModeCard v={v} />
       <div className="metrics">
         <div className="metric"><span className="v num">{m.matches}</span><span className="lbl">Matches compared</span></div>
         <div className="metric"><span className="v num">{m.n}</span><span className="lbl">Players compared</span></div>

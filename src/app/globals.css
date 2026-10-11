@@ -150,6 +150,8 @@ a { color: var(--primary); text-underline-offset: 3px; }
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--surface); }
 .seg a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--s4); text-decoration: none; color: var(--text-muted); font-weight: 500; }
 .seg a[aria-current="true"] { background: var(--primary-soft); color: var(--on-primary-soft); font-weight: 600; }
+.seg button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--s4); border: 0; background: transparent; color: var(--text-muted); font: inherit; font-weight: 500; cursor: pointer; touch-action: manipulation; }
+.seg button[data-on="true"] { background: var(--primary-soft); color: var(--on-primary-soft); font-weight: 600; }
 
 /* Match list */
 .match-list { display: grid; gap: var(--s3); grid-template-columns: minmax(0, 1fr); }
