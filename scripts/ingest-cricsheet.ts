@@ -1,5 +1,7 @@
-// Loads men's T20 internationals from Cricsheet into Supabase.
-// Runs outside Vercel:  npm run ingest:cricsheet -- [--since 2021-01-01] [--limit 50] [--refresh]
+// Loads men's T20 matches from Cricsheet into Supabase.
+// Runs outside Vercel:  npm run ingest:cricsheet -- [--dataset t20s|ipl|sma] [--since 2021-01-01] [--limit 50] [--refresh]
+//   --dataset  which Cricsheet file: t20s = men's T20 internationals (default),
+//              ipl = Indian Premier League, sma = Syed Mushtaq Ali Trophy (Indian domestic T20)
 //   --since    only matches on or after this date (default 2021-01-01)
 //   --limit    stop after this many matches (for quick trial runs)
 //   --refresh  download and unpack the Cricsheet zip again
@@ -10,10 +12,12 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from "node:path";
 import { parseMatch, type CsMatch, type ParsedMatch } from "../src/lib/cricsheet";
 
-const ZIP_URL = "https://cricsheet.org/downloads/t20s_json.zip";
-const DATA_DIR = join(process.cwd(), "data", "cricsheet");
-const JSON_DIR = join(DATA_DIR, "json");
-const LEAGUE_NAME = "Men's T20I";
+// Each dataset becomes its own league. Only the international one decides a player's national team.
+const DATASETS = {
+  t20s: { zip: "t20s_json.zip", league: "Men's T20I", tier: "international" },
+  ipl: { zip: "ipl_json.zip", league: "Indian Premier League", tier: "franchise" },
+  sma: { zip: "sma_json.zip", league: "Syed Mushtaq Ali Trophy", tier: "domestic" },
+} as const;
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(`--${name}`);
@@ -21,6 +25,13 @@ const option = (name: string) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? args[i + 1] : undefined;
 };
+
+const datasetName = (option("dataset") ?? "t20s") as keyof typeof DATASETS;
+const dataset = DATASETS[datasetName];
+if (!dataset) throw new Error(`Unknown dataset "${datasetName}". Use one of: ${Object.keys(DATASETS).join(", ")}`);
+const ZIP_URL = `https://cricsheet.org/downloads/${dataset.zip}`;
+const JSON_DIR = join(process.cwd(), "data", "cricsheet", datasetName, "json");
+const LEAGUE_NAME = dataset.league;
 const since = option("since") ?? "2021-01-01";
 const limit = option("limit") ? Number(option("limit")) : Infinity;
 
@@ -102,7 +113,7 @@ async function main() {
     // League
     const leagueRes = await db
       .from("leagues")
-      .upsert({ name: LEAGUE_NAME, gender: "male", tier: "international" }, { onConflict: "name" })
+      .upsert({ name: LEAGUE_NAME, gender: "male", tier: dataset.tier }, { onConflict: "name" })
       .select("id")
       .single();
     if (leagueRes.error) throw new Error(`leagues: ${leagueRes.error.message}`);
@@ -133,11 +144,17 @@ async function main() {
       rowsWritten += data.length;
     }
 
-    // Players: each player's team is the most recent team seen (matches are in date order).
+    // Players: for the international dataset a player's team is the most recent national team seen
+    // (matches are in date order). Franchise and domestic datasets never touch team_id, so
+    // "India" is not overwritten by "Mumbai Indians".
     const playerTeam = new Map<string, { name: string; team: string }>();
     for (const { parsed: p } of matches) for (const l of p.lines) playerTeam.set(l.cricsheetId, { name: l.name, team: l.team });
     const playerIds = new Map<string, number>();
-    const playerRows = [...playerTeam].map(([cricsheet_id, v]) => ({ cricsheet_id, name: v.name, team_id: teamIds.get(v.team) ?? null }));
+    const playerRows = [...playerTeam].map(([cricsheet_id, v]) =>
+      dataset.tier === "international"
+        ? { cricsheet_id, name: v.name, team_id: teamIds.get(v.team) ?? null }
+        : { cricsheet_id, name: v.name },
+    );
     for (const group of chunk(playerRows, 500)) {
       const { data, error } = await db.from("players").upsert(group, { onConflict: "cricsheet_id" }).select("id,cricsheet_id");
       if (error) throw new Error(`players: ${error.message}`);
