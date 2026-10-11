@@ -167,7 +167,17 @@ async function main() {
     if (!p.selection || !p.captains) continue;
     const rec = await db
       .from("recommendations")
-      .insert({ match_id: match.id, rubric_version_id: rubric!.id, stage: p.stage, captain_id: p.captains.captainId, vc_id: p.captains.viceCaptainId })
+      .insert({
+        match_id: match.id, rubric_version_id: rubric!.id, stage: p.stage, captain_id: p.captains.captainId, vc_id: p.captains.viceCaptainId,
+        // What the explanation layer needs, so "why the runner-up lost" comes from stored numbers:
+        captain_scores_json: p.captains.scores,
+        engine_notes_json: {
+          deathLog: p.deathLog, notes: p.notes, unavailableFactors: p.unavailableFactors, validation: p.validation,
+          rulesProfile: p.rulesProfile, rubricVersion: p.rubricVersion, totalCredits: p.selection.totalCredits, creditsSource: "seeded",
+          excluded: p.excluded,
+        },
+        captain_reason: null, vc_reason: null, summary_text: null, // written by explain.ts
+      })
       .select("id")
       .single();
     if (rec.error) throw new Error(`recommendations: ${rec.error.message}`);
