@@ -3,10 +3,12 @@
 // Runs outside Vercel:  npm run explain -- --match 1529230 [--no-gemini]
 //   --no-gemini   skip the API call and use the plain templates (also what happens if Gemini fails)
 
+import { RUBRIC } from "../src/config/rubric";
 import { serverDb } from "../src/lib/db";
+import { venueLabel } from "../src/lib/format";
 import { generateJson } from "../src/lib/gemini";
 import {
-  OUTPUT_SCHEMA, SYSTEM_PROMPT, assembleExplanation, buildPrompt,
+  OUTPUT_SCHEMA, SYSTEM_PROMPT, assembleExplanation, buildCaptainCase, buildPrompt,
   type Facts, type PickFacts,
 } from "../src/lib/reasoning";
 
@@ -98,14 +100,16 @@ async function main() {
       context: {
         stage: rec.stage, matchLabel: `${teamName.get(match.team_a)} v ${teamName.get(match.team_b)}`,
         date: { day: date.getUTCDate(), month: date.getUTCMonth() + 1, year: date.getUTCFullYear() },
-        venue: venue ? [venue.name, venue.city].filter(Boolean).join(", ") : "unknown venue",
+        venue: venueLabel(venue?.name, venue?.city),
         pitch: { tag: pitch.tag ?? "NEUTRAL", indexPct: pitch.index === null || pitch.index === undefined ? null : r1(pitch.index * 100), matches: pitch.matches ?? 0, lowConfidence: pitch.lowConfidence ?? true },
         weather: weather ? { tempC: weather.tempC, humidityPct: weather.humidityPct, dewPointC: weather.dewPointC, rainMm: weather.rainMm, cloudPct: weather.cloudPct, windKmh: weather.windKmh } : null,
         teamFormEffectPct: Object.fromEntries(Object.entries(pitch.teamForm ?? {}).map(([t, f]) => [t, effectPct(f.multiplier)])),
         totalCredits: notes.totalCredits ?? picks.reduce((a, p) => a + p.credits, 0), creditCap: 100, creditsAreSeeded: true,
         composition: { byRole: countBy((p) => p.role), byTeam: countBy((p) => p.team) },
+        deathWindowMonths: RUBRIC.death.windowMonths.value,
         deathLog: notes.deathLog ?? [], unavailableFactors: notes.unavailableFactors ?? [],
-        captainRace: scores.filter((s) => s.captainScore !== null).map((s) => ({ name: s.name, captainScore: r1(s.captainScore) })).sort((a, b) => (b.captainScore ?? 0) - (a.captainScore ?? 0)),
+        // The engine's own ranking of eligible captains (best first), turned into plain reasons by code.
+        captaincy: buildCaptainCase(picks, scores.filter((s) => s.captainScore !== null).sort((a, b) => (b.captainScore ?? 0) - (a.captainScore ?? 0)).map((s) => s.name)),
       },
       picks,
     };

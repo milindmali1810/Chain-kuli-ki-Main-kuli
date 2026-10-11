@@ -184,6 +184,7 @@ a { color: var(--primary); text-underline-offset: 3px; }
 .badge-c { background: var(--primary); color: var(--on-primary); border-radius: 4px; padding: 0 6px; font-size: 0.75rem; font-weight: 700; margin-left: 6px; }
 .dnp { color: var(--bad); font-weight: 600; font-size: 0.8125rem; }
 
+details.how > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; color: var(--primary); }
 .facts { display: grid; gap: var(--s2); grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 700px) { .facts { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .fact { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s3); }

@@ -1,4 +1,5 @@
 import { Icon } from "@/components/icons";
+import { CAPTAIN_INTRO, CAPTAIN_STEPS } from "@/lib/captainRules";
 
 export const metadata = { title: "Guide" };
 
@@ -47,6 +48,24 @@ export default function GuidePage() {
             </li>
           ))}
         </ol>
+      </section>
+
+      <section className="stack" aria-labelledby="cap-h">
+        <h2 id="cap-h">How the captain and vice-captain are chosen</h2>
+        <p className="muted">{CAPTAIN_INTRO}</p>
+        <ol className="stack" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {CAPTAIN_STEPS.map((s) => (
+            <li key={s.title} className="card">
+              <h3>{s.title}</h3>
+              <p className="muted" style={{ marginTop: 4 }}>{s.text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="stack" aria-labelledby="enter-h">
+        <h2 id="enter-h">Where do I enter the real points?</h2>
+        <p className="muted">Open any match from the Matches screen and tap <strong>Enter Dream11 points</strong> at the top (or scroll to the bottom). Change only the players whose real Dream11 points differ from the pre-filled numbers, then save. Only the boxes you change are stored as real Dream11 points.</p>
       </section>
 
       <section className="stack" aria-labelledby="read-h">

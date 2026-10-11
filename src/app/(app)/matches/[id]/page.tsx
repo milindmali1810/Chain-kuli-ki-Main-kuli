@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Icon } from "@/components/icons";
+import { CAPTAIN_INTRO, CAPTAIN_STEPS } from "@/lib/captainRules";
 import { ROLE_LABEL, formatDate, num, pctEffect } from "@/lib/format";
 import { getMatch, type PlayerRow, type StageView } from "@/lib/queries";
 import { EntryForm } from "./EntryForm";
@@ -89,6 +90,9 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
           {match.hasActual ? <span className="chip good"><Icon name="check" size={14} />Played</span> : <span className="chip warn">Not played yet</span>}
           <span className="chip">Credits are seeded, not Dream11&apos;s own</span>
         </div>
+        <div className="row">
+          <a href="#enter" className="btn primary">Enter Dream11 points</a>
+        </div>
       </div>
 
       {!view ? (
@@ -144,8 +148,29 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
             <aside className="stack-lg" aria-label="Reasons and notes">
               <section className="card stack" aria-labelledby="cap-h">
                 <h2 id="cap-h">Captain and vice-captain</h2>
-                <p>{view.captainReason ?? "No explanation stored yet."}</p>
-                <p className="muted">{view.viceReason}</p>
+                {(() => {
+                  const cap = view.players.find((p) => p.isCaptain);
+                  const vc = view.players.find((p) => p.isViceCaptain);
+                  return (
+                    <>
+                      <div className="stack">
+                        <p><span className="badge-c" style={{ marginLeft: 0, marginRight: 8 }}>C</span><strong>{cap?.name ?? "No captain"}</strong> <span className="muted">(2x points)</span></p>
+                        <p>{view.captainReason ?? "No explanation stored yet."}</p>
+                      </div>
+                      <div className="stack">
+                        <p><span className="badge-c" style={{ marginLeft: 0, marginRight: 8 }}>VC</span><strong>{vc?.name ?? "No vice-captain"}</strong> <span className="muted">(1.5x points)</span></p>
+                        <p>{view.viceReason}</p>
+                      </div>
+                    </>
+                  );
+                })()}
+                <details className="how">
+                  <summary>How the captain is chosen</summary>
+                  <div className="stack" style={{ paddingTop: 8 }}>
+                    <p className="muted">{CAPTAIN_INTRO}</p>
+                    {CAPTAIN_STEPS.map((s) => <p key={s.title}><strong>{s.title}.</strong> {s.text}</p>)}
+                  </div>
+                </details>
               </section>
 
               <section className="card stack" aria-labelledby="pitch-h">
