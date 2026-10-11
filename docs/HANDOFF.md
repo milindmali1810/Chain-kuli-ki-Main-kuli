@@ -56,6 +56,9 @@ Milestone 1 is built and tested (90 passing tests). The scaffold is on GitHub an
 - docs/RULES_LOCKED.md — locked team rules and points table with confidence tags
 - docs/HANDOFF.md — this file
 
+## REMINDER FOR MILIND (he asked on 11 Oct: "remind me this later")
+Indian first-class data is NOT in the database. Cricsheet has no Ranji/Duleep/Irani and no official free BCCI feed was found. Revisit near the end: (a) decide whether to try a scraper (check terms first), (b) or keep the answer "T20 evidence only: IPL + Syed Mushtaq Ali + T20Is". Raise this again before the viva notes and the Components Map.
+
 ## Open items
 0. Milind to paste SUPABASE_SERVICE_ROLE_KEY into .env.local (server-only). PIN 3030 is short and guessable; consider a longer one before the viva.
 1. Three Dream11 screenshots (team-creation screen, in-app points page, backup screen) would settle the unverified rules.
