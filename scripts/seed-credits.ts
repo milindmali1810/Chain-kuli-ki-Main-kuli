@@ -4,11 +4,9 @@
 
 import type { Role } from "../src/config/rules";
 import { serverDb, loadHistoryRows, monthsBefore } from "../src/lib/db";
-import { averagePoints, fantasyPointsSeries, type HistoryRow } from "../src/lib/history";
-import { seededCredit } from "../src/lib/seedCredits";
+import { seedCreditsFor } from "../src/lib/seedCredits";
 
 const WINDOW_MONTHS = 36;
-const MIN_MATCHES_FOR_REFERENCE = 8;
 
 const args = process.argv.slice(2);
 const i = args.indexOf("--match");
@@ -25,11 +23,8 @@ async function main() {
   if (squadErr) throw new Error(squadErr.message);
 
   const rows = await loadHistoryRows(db, monthsBefore(date, WINDOW_MONTHS), date);
-  console.log(`History: ${rows.length} rows from ${monthsBefore(date, WINDOW_MONTHS)} up to (not including) ${date}`);
-  const byPlayer = new Map<number, HistoryRow[]>();
-  for (const r of rows) byPlayer.set(r.playerId, [...(byPlayer.get(r.playerId) ?? []), r]);
+  console.log(`History: ${rows.length} rows up to (not including) ${date}`);
 
-  // Roles for everyone with history (needed to score a match).
   const roles = new Map<number, Role>();
   for (let start = 0; ; start += 1000) {
     const { data, error: e } = await db.from("players").select("id, role").not("role", "is", null).order("id").range(start, start + 999);
@@ -38,28 +33,16 @@ async function main() {
     if (data.length < 1000) break;
   }
 
-  const avgOf = (playerId: number): { avg: number | null; n: number } => {
-    const role = roles.get(playerId);
-    if (!role) return { avg: null, n: 0 };
-    const series = fantasyPointsSeries(byPlayer.get(playerId) ?? [], role);
-    return { avg: averagePoints(series, 15), n: series.length };
-  };
-
-  // Reference group: established players, so one debutant's two lucky matches cannot skew the scale.
-  const reference: number[] = [];
-  for (const playerId of byPlayer.keys()) {
-    const { avg, n } = avgOf(playerId);
-    if (avg !== null && n >= MIN_MATCHES_FOR_REFERENCE) reference.push(avg);
-  }
-  console.log(`Reference group: ${reference.length} established players`);
+  const players = squad as unknown as { player_id: number; players: { name: string; role: string | null } }[];
+  const ids = players.map((p) => p.player_id);
+  const priced = seedCreditsFor(rows, roles, ids, ids); // ranked against the players in this match
 
   const out: { match_id: number; player_id: number; credits: number; source: string }[] = [];
   const table: string[] = [];
-  for (const s of squad as unknown as { player_id: number; players: { name: string; role: string | null } }[]) {
-    const { avg, n } = avgOf(s.player_id);
-    const credit = seededCredit(avg, reference);
-    table.push(`${s.players.name.padEnd(18)} ${String(s.players.role ?? "-").padEnd(5)} matches=${String(n).padStart(2)}  avg pts=${avg === null ? "  n/a" : avg.toFixed(1).padStart(5)}  credits=${credit ?? "unavailable"}`);
-    if (credit !== null) out.push({ match_id: match.id, player_id: s.player_id, credits: credit, source: "seeded" });
+  for (const s of players) {
+    const r = priced.get(s.player_id)!;
+    table.push(`${s.players.name.padEnd(18)} ${String(s.players.role ?? "-").padEnd(5)} matches=${String(r.matches).padStart(3)}  avg pts=${r.avg === null ? "  n/a" : r.avg.toFixed(1).padStart(5)}  credits=${r.credit ?? "unavailable"}`);
+    if (r.credit !== null) out.push({ match_id: match.id, player_id: s.player_id, credits: r.credit, source: "seeded" });
   }
   console.log(table.sort().join("\n"));
 

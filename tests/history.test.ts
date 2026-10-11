@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { averagePoints, fantasyPointsSeries, type HistoryRow } from "@/lib/history";
-import { percentileOf, seededCredit } from "@/lib/seedCredits";
+import { percentileOf, seedCreditsFor, seededCredit } from "@/lib/seedCredits";
 
 const row = (matchId: number, date: string, stats: HistoryRow["stats"]): HistoryRow => ({
   playerId: 1, matchId, date, leagueTier: "international", teamId: 1, venueId: 1, stats,
@@ -37,6 +37,28 @@ describe("averagePoints", () => {
   });
   it("no matches: null, not zero", () => {
     expect(averagePoints([], 15)).toBeNull();
+  });
+});
+
+describe("seedCreditsFor: ranked against the players in the match", () => {
+  // Eight players with steady averages, one per row set: Player n scores a quiet 4 plus n x 10 runs-worth of points.
+  const rowsFor = (id: number): HistoryRow[] =>
+    Array.from({ length: 8 }, (_, m) => row(id * 100 + m, `2026-01-${String(m + 1).padStart(2, "0")}`, {
+      inPlayingXI: true,
+      batting: [{ runs: id * 10, balls: id * 10, fours: 0, sixes: 0, dismissed: true }],
+    })).map((r) => ({ ...r, playerId: id }));
+  const rows = [1, 2, 3, 4, 5].flatMap(rowsFor);
+  const roles = new Map<number, "BAT">([1, 2, 3, 4, 5].map((id) => [id, "BAT"]));
+
+  it("the best of the group costs 11 and the weakest 7.5, whatever the absolute level", () => {
+    const priced = seedCreditsFor(rows, roles, [1, 2, 3, 4, 5], [1, 2, 3, 4, 5]);
+    expect(priced.get(5)!.credit).toBe(10.5); // top of 5: percentile 0.9
+    expect(priced.get(1)!.credit).toBe(8); // bottom of 5: percentile 0.1
+  });
+
+  it("a player with no role gets no credit, never a guess", () => {
+    const priced = seedCreditsFor(rows, new Map(), [1], [1]);
+    expect(priced.get(1)).toEqual({ credit: null, avg: null, matches: 0 });
   });
 });
 
