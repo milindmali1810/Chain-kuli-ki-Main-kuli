@@ -5,8 +5,7 @@ import { Icon } from "@/components/icons";
 import { ROLES, RULES_PROFILES, DEFAULT_RULES_PROFILE } from "@/config/rules";
 import type { EditorData } from "@/lib/editor";
 import { checkSelection, diffFromAgent } from "@/lib/editorLogic";
-import { ROLE_LABEL, num } from "@/lib/format";
-import { teamScore } from "@/lib/teamScore";
+import { ROLE_LABEL } from "@/lib/format";
 import { confirmTeam, type ConfirmState } from "./team-actions";
 
 const INITIAL: ConfirmState = { ok: false, message: "", problems: [] };
@@ -43,16 +42,6 @@ export function TeamEditor({ data }: { data: EditorData }) {
     setViceId(data.agent?.viceId ?? null);
   };
 
-  // After the match, show how this exact team would have scored next to the agent's team (same formula for both).
-  let comparison: { agent: number; mine: number } | null = null;
-  if (data.actualById && data.agent && ids.length === 11) {
-    const pts = new Map(Object.entries(data.actualById).map(([k, v]) => [Number(k), v]));
-    comparison = {
-      agent: teamScore(pts, data.agent.ids, data.agent.captainId, data.agent.viceId, rules),
-      mine: teamScore(pts, ids, captainId, viceId, rules),
-    };
-  }
-
   const creditPct = Math.min(100, (check.credits / rules.creditCap.value) * 100);
 
   return (
@@ -62,7 +51,7 @@ export function TeamEditor({ data }: { data: EditorData }) {
       {data.mode === "practice" && (
         <div className="banner info" role="note">
           <Icon name="info" />
-          <p><strong>Practice mode.</strong> This match has already been played, so nothing can be entered in Dream11. Edit the team to see how it would have scored against the agent&apos;s.</p>
+          <p><strong>Practice mode.</strong> This match has already been played, so nothing can be entered in Dream11. You can still edit and confirm a team to practise the flow.</p>
         </div>
       )}
       {data.mode === "locked" && (
@@ -186,20 +175,6 @@ export function TeamEditor({ data }: { data: EditorData }) {
               {diff.viceCaptainChanged && <li>Different vice-captain</li>}
             </ul>
           )}
-        </div>
-      )}
-
-      {comparison && (
-        <div className="card" style={{ background: "var(--surface-2)" }} aria-live="polite">
-          <h3>How it would have scored (real points)</h3>
-          <div className="scoreline" style={{ marginTop: 8 }}>
-            <div><span className="big num">{num(comparison.agent)}</span><span className="lbl">agent&apos;s team</span></div>
-            <div><span className="big num">{num(comparison.mine)}</span><span className="lbl">your team</span></div>
-            <div>
-              <span className="big num">{comparison.mine - comparison.agent > 0 ? "+" : ""}{num(comparison.mine - comparison.agent)}</span>
-              <span className="lbl">{comparison.mine > comparison.agent ? "you beat the agent" : comparison.mine < comparison.agent ? "the agent was ahead" : "level"}</span>
-            </div>
-          </div>
         </div>
       )}
 

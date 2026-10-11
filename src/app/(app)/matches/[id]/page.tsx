@@ -7,6 +7,8 @@ import { CAPTAIN_INTRO, CAPTAIN_STEPS } from "@/lib/captainRules";
 import { ROLE_LABEL, formatDate, num, pctEffect } from "@/lib/format";
 import { getMatch, type PlayerRow, type StageView } from "@/lib/queries";
 import { loadEditorData } from "@/lib/editor";
+import { reconcile } from "@/lib/editorLogic";
+import { teamScore } from "@/lib/teamScore";
 import { EntryForm } from "./EntryForm";
 import { TeamEditor } from "./TeamEditor";
 
@@ -94,7 +96,7 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
         </div>
         <div className="row">
           <a href="#edit" className="btn primary">Edit and confirm my team</a>
-          <a href="#enter" className="btn">Enter Dream11 points</a>
+          <a href="#enter" className="btn">Enter the points my team scored</a>
         </div>
       </div>
 
@@ -203,14 +205,46 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
 
           {editor && <TeamEditor data={editor} />}
 
-          <section id="enter" className="card stack" aria-labelledby="enter-h">
-            <h2 id="enter-h">Enter the real Dream11 points</h2>
-            <EntryForm
-              cricsheetId={match.cricsheetId}
-              source={match.actualSource}
-              entries={view.players.map((p) => ({ playerId: p.playerId, name: p.name, current: p.actual }))}
-            />
-          </section>
+          {(() => {
+            // After the match Aryan records what HIS team scored: his confirmed team, or the agent's if he never edited it.
+            const teamIds = editor?.saved?.ids ?? editor?.agent?.ids ?? view.players.map((p) => p.playerId);
+            const captainId = editor?.saved ? editor.saved.captainId : editor?.agent?.captainId ?? null;
+            const viceId = editor?.saved ? editor.saved.viceId : editor?.agent?.viceId ?? null;
+            const nameOf = new Map([...(editor?.pool ?? []).map((p) => [p.id, p.name] as const), ...view.players.map((p) => [p.playerId, p.name] as const)]);
+            const points = editor?.actualById ?? null;
+            const complete = points !== null && teamIds.length > 0 && teamIds.every((id) => points[id] !== undefined);
+            const yourTotal = complete
+              ? Math.round(teamScore(new Map(Object.entries(points).map(([k, v]) => [Number(k), v])), teamIds, captainId, viceId) * 10) / 10
+              : null;
+            const check = yourTotal !== null ? reconcile(yourTotal, editor?.saved?.reportedTotal ?? null) : null;
+            return (
+              <section id="enter" className="card stack" aria-labelledby="enter-h">
+                <h2 id="enter-h">After the match: enter the points your team scored</h2>
+                {yourTotal !== null ? (
+                  <div className="card" style={{ background: "var(--surface-2)" }} aria-live="polite">
+                    <span className="muted">{editor?.saved ? "Your team scored" : "The agent's team (which you have not edited) scored"}</span>
+                    <div className="num" style={{ fontSize: "1.75rem", fontWeight: 600 }}>{num(yourTotal, 1)}</div>
+                    <p className="muted">11 players plus the captain&apos;s 2x and the vice-captain&apos;s 1.5x. Uses the real Dream11 points you entered, and the scorecard calculation for the rest.</p>
+                    {check && (
+                      <p style={{ marginTop: 8 }}>
+                        <span className={`chip ${check.matches ? "good" : "warn"}`}>{check.matches ? "Matches Dream11" : "Differs from Dream11"}</span>{" "}
+                        {check.message}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="muted">Enter the points below to see what your team scored.</p>
+                )}
+                <EntryForm
+                  cricsheetId={match.cricsheetId}
+                  source={match.actualSource}
+                  reportedTotal={editor?.saved?.reportedTotal ?? null}
+                  teamLabel={editor?.saved ? "the team you confirmed" : "the agent's team (you have not edited it)"}
+                  entries={teamIds.map((id) => ({ playerId: id, name: nameOf.get(id) ?? String(id), current: points?.[id] ?? null }))}
+                />
+              </section>
+            );
+          })()}
         </>
       )}
     </div>

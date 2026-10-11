@@ -32,6 +32,13 @@ function MatchTile({ m }: { m: MatchCard }) {
         <div className="scoreline" style={{ marginTop: 4 }}>
           <Score label={`predicted (${which})`} value={num(stage.predicted)} />
           <Score label={m.actualSource === "dream11_manual" ? "actual (Dream11)" : "actual (scorecard)"} value={played ? num(stage.actual) : "pending"} />
+          {m.yourTeam && (
+            <Score
+              label={m.yourTeam.unedited ? "your team (agent's, unedited)" : "your team"}
+              value={m.yourTeam.total !== null ? num(m.yourTeam.total) : "points not entered"}
+              hint={m.yourTeam.reportedTotal !== null ? `Dream11 ${num(m.yourTeam.reportedTotal)}` : undefined}
+            />
+          )}
         </div>
       )}
       <div className="row">

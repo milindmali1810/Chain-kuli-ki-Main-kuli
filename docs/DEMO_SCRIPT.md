@@ -23,11 +23,10 @@ Record on a laptop at normal width, then show the phone view for 15 seconds at t
 ## 2:00 to 2:25 — Edit and confirm (add about 30 seconds if time allows)
 - Tap "Edit and confirm my team". "This is practice because the match has been played; for a live match you can edit until it starts."
 - Remove one player: show the plain-English rule errors and the credits changing. Add a replacement and pick a different vice-captain: "valid again".
-- Show "How it would have scored": your team vs the agent's, on real points.
 - Press "Confirm my team" (optional). Say: "The server checks the rules again before saving."
 
-## 2:15 to 2:50 — Post-match entry
-- Scroll to "Enter the real Dream11 points". Change one number, save. "Only the boxes I change are saved as real Dream11 points; the rest stay labelled as computed from the scorecard."
+## 2:15 to 2:50 — After the match: the points your team scored
+- Tap "Enter the points my team scored". "These are the players of the team I confirmed." Change one player and type the team total Dream11 shows, then save. "Only the boxes I change are saved as real Dream11 points." Point at "Your team scored N" and the check against the Dream11 total.
 - (Optional) type "abc" to show the error message and that nothing is saved. Remove the test value afterwards if you saved one.
 
 ## 2:50 to 3:40 — Learning

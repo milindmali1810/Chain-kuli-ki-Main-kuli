@@ -16,9 +16,12 @@ export interface EditorData {
   pool: EditorPlayer[];
   unavailable: { name: string; reason: string }[];
   agent: { stage: "final" | "provisional"; ids: number[]; captainId: number | null; viceId: number | null } | null;
-  saved: { ids: number[]; captainId: number | null; viceId: number | null; confirmedAt: string } | null;
-  // Real points per player once the match has been played (real Dream11 points win over scorecard-computed ones).
+  // Aryan's confirmed team. reportedTotal is the team total he read off Dream11 after the match (or null).
+  saved: { ids: number[]; captainId: number | null; viceId: number | null; confirmedAt: string; reportedTotal: number | null } | null;
+  // Points per player once known: real Dream11 points win over stored scorecard ones, then the scorecard calculation.
   actualById: Record<number, number> | null;
+  // Points calculated from the scorecard (never typed by Aryan), used to pre-fill the entry form honestly.
+  computedById: Record<number, number>;
 }
 
 export async function loadEditorData(cricsheetId: string): Promise<EditorData | null> {
@@ -84,28 +87,42 @@ export async function loadEditorData(cricsheetId: string): Promise<EditorData | 
   }
   pool.sort((a, b) => a.team.localeCompare(b.team) || a.name.localeCompare(b.name));
 
-  // Actual points for every pool player (needed to compare a team Aryan edited with the agent's team).
+  // Points computed from the scorecard for every pool player, when the match's scorecard is in the data. A player with
+  // no line in a match that HAS a scorecard did not play: 0. With no scorecard at all (a match not yet in the data) the
+  // points are simply unknown, never a made-up 0.
+  const { data: lines } = await db.from("player_match_lines").select("player_id, stats_json").eq("match_id", m.id).in("player_id", ids.length ? ids : [0]);
+  const lineOf = new Map((lines ?? []).map((l) => [l.player_id as number, l.stats_json as StatsNoRole]));
+  const hasScorecard = (lines ?? []).length > 0;
+  const computedById: Record<number, number> = {};
+  for (const p of pool) {
+    const stats = lineOf.get(p.id);
+    if (stats) computedById[p.id] = scorePlayerMatch({ role: p.role, ...stats } as PlayerMatchStats).total;
+    else if (hasScorecard) computedById[p.id] = 0;
+  }
+
+  // Points as stored: real Dream11 points Aryan typed win over computed ones; anything not stored falls back to the
+  // scorecard calculation.
+  const manual = new Map<number, number>();
+  const stored = new Map<number, number>();
+  for (const a of actualRows ?? []) (a.source === "dream11_manual" ? manual : stored).set(a.player_id, Number(a.points));
   let actualById: EditorData["actualById"] = null;
-  if ((actualRows ?? []).length > 0) {
+  if ((actualRows ?? []).length > 0 || hasScorecard) {
     actualById = {};
-    const manual = new Map<number, number>();
-    const computed = new Map<number, number>();
-    for (const a of actualRows ?? []) (a.source === "dream11_manual" ? manual : computed).set(a.player_id, Number(a.points));
-    const { data: lines } = await db.from("player_match_lines").select("player_id, stats_json").eq("match_id", m.id).in("player_id", ids.length ? ids : [0]);
-    const lineOf = new Map((lines ?? []).map((l) => [l.player_id as number, l.stats_json as StatsNoRole]));
     for (const p of pool) {
-      if (manual.has(p.id)) actualById[p.id] = manual.get(p.id)!;
-      else if (computed.has(p.id)) actualById[p.id] = computed.get(p.id)!;
-      else {
-        const stats = lineOf.get(p.id);
-        // Not in the line-up at all means he did not play: 0 points.
-        actualById[p.id] = stats ? scorePlayerMatch({ role: p.role, ...stats } as PlayerMatchStats).total : 0;
-      }
+      const v = manual.get(p.id) ?? stored.get(p.id) ?? computedById[p.id];
+      if (v !== undefined) actualById[p.id] = v;
     }
   }
 
+  const sj = (savedRow?.players_json ?? {}) as Row;
   const saved = savedRow
-    ? { ids: ((savedRow.players_json as Row)?.ids ?? []) as number[], captainId: savedRow.captain_id ?? null, viceId: savedRow.vc_id ?? null, confirmedAt: savedRow.confirmed_at as string }
+    ? {
+        ids: (sj.ids ?? []) as number[],
+        captainId: savedRow.captain_id ?? null,
+        viceId: savedRow.vc_id ?? null,
+        confirmedAt: savedRow.confirmed_at as string,
+        reportedTotal: typeof sj.reportedTotal === "number" ? (sj.reportedTotal as number) : null,
+      }
     : null;
 
   return {
@@ -118,5 +135,6 @@ export async function loadEditorData(cricsheetId: string): Promise<EditorData | 
     agent,
     saved,
     actualById,
+    computedById,
   };
 }

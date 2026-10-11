@@ -3,17 +3,19 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { serverDb } from "@/lib/db";
+import { loadEditorData } from "@/lib/editor";
 import { PIN_COOKIE, isValidToken } from "@/lib/pin";
 
 export interface SaveState {
   ok: boolean;
   message: string;
-  errors: Record<string, string>; // player id -> message
+  errors: Record<string, string>; // player id (or "total") -> message
   values?: Record<string, string>; // what was typed, so a failed save does not wipe the boxes
 }
 
-// Aryan types the real Dream11 points for each player. They are stored beside the predicted points
-// (source = dream11_manual) and win over the points computed from the scorecard.
+// After the match Aryan records what HIS team scored in Dream11: the points for each of his players and the team
+// total Dream11 shows. Real Dream11 values are stored as source dream11_manual; points calculated from the scorecard
+// stay labelled computed_from_scorecard. Nothing the browser sends is trusted.
 export async function saveActualPoints(_prev: SaveState, formData: FormData): Promise<SaveState> {
   // Server Actions can be called directly, so check the PIN here as well as in the proxy.
   const token = (await cookies()).get(PIN_COOKIE)?.value;
@@ -22,17 +24,13 @@ export async function saveActualPoints(_prev: SaveState, formData: FormData): Pr
   }
 
   const cricsheetId = String(formData.get("match") ?? "");
+  const data = await loadEditorData(cricsheetId);
+  if (!data) return { ok: false, message: "That match was not found.", errors: {} };
   const db = serverDb();
-  const { data: match } = await db.from("matches").select("id").eq("cricsheet_match_id", cricsheetId).maybeSingle();
-  if (!match) return { ok: false, message: "That match was not found.", errors: {} };
 
-  // Only players who are actually in this match's recommendations can be saved (never trust the form).
-  const { data: recs } = await db.from("recommendations").select("id").eq("match_id", match.id);
-  const { data: allowed } = await db
-    .from("recommendation_players")
-    .select("player_id")
-    .in("recommendation_id", (recs ?? []).map((r) => r.id));
-  const allowedIds = new Set((allowed ?? []).map((a) => String(a.player_id)));
+  // The team Aryan actually played: his confirmed team, or the agent's team if he never edited it.
+  const teamIds = data.saved?.ids ?? data.agent?.ids ?? [];
+  const allowedIds = new Set(teamIds.map(String));
 
   const errors: Record<string, string> = {};
   const values: Record<string, string> = {};
@@ -44,26 +42,67 @@ export async function saveActualPoints(_prev: SaveState, formData: FormData): Pr
     const text = String(raw).trim();
     values[playerId] = text;
     if (text === "") continue; // blank = leave this player as it is
-    // Only save what Aryan actually changed. Unchanged boxes still hold the pre-filled scorecard number, which
-    // must not be relabelled as a real Dream11 value.
+    // Only save what Aryan actually changed. Unchanged boxes still hold the pre-filled number, which must not be
+    // relabelled as a real Dream11 value.
     const original = String(formData.get(`orig_${playerId}`) ?? "").trim();
     if (original !== "" && Number(original) === Number(text)) continue;
     const value = Number(text);
     if (!Number.isFinite(value)) errors[playerId] = "Enter a number, like 42 or 42.5";
     else if (value < -100 || value > 1000) errors[playerId] = "That looks too large or small. Check the points.";
-    else rows.push({ match_id: match.id, player_id: Number(playerId), points: Math.round(value * 10) / 10, entered_by: "Aryan", source: "dream11_manual" });
+    else rows.push({ match_id: data.matchId, player_id: Number(playerId), points: Math.round(value * 10) / 10, entered_by: "Aryan", source: "dream11_manual" });
+  }
+
+  // The team total as Dream11 shows it (with the captain and vice-captain extras already added).
+  let reportedTotal: number | null = null;
+  const totalText = String(formData.get("total") ?? "").trim();
+  values.total = totalText;
+  const originalTotal = String(formData.get("orig_total") ?? "").trim();
+  if (totalText !== "" && !(originalTotal !== "" && Number(originalTotal) === Number(totalText))) {
+    const t = Number(totalText);
+    if (!Number.isFinite(t)) errors.total = "Enter a number, like 436 or 436.5";
+    else if (t < -1000 || t > 10000) errors.total = "That total looks wrong. Check the Dream11 screen.";
+    else reportedTotal = Math.round(t * 10) / 10;
   }
 
   if (Object.keys(errors).length > 0) {
     return { ok: false, message: `${Object.keys(errors).length} value(s) need fixing. Nothing was saved.`, errors, values };
   }
-  if (rows.length === 0) return { ok: false, message: "Nothing changed. Type a different value for at least one player.", errors: {}, values };
+  if (rows.length === 0 && reportedTotal === null) {
+    return { ok: false, message: "Nothing changed. Type a different value for at least one player, or the Dream11 team total.", errors: {}, values };
+  }
 
-  const { error } = await db.from("actual_points").upsert(rows, { onConflict: "match_id,player_id,source" });
-  if (error) return { ok: false, message: "Couldn't save. Try again in a moment.", errors: {}, values };
+  if (rows.length > 0) {
+    const { error } = await db.from("actual_points").upsert(rows, { onConflict: "match_id,player_id,source" });
+    if (error) return { ok: false, message: "Couldn't save. Try again in a moment.", errors: {}, values };
+  }
+
+  // Keep the scorecard calculation for his players on file too, honestly labelled as computed, so the team total can
+  // always be worked out.
+  const computedRows = teamIds
+    .filter((id) => data.computedById[id] !== undefined)
+    .map((id) => ({ match_id: data.matchId, player_id: id, points: data.computedById[id], entered_by: "scorecard", source: "computed_from_scorecard" }));
+  if (computedRows.length > 0) await db.from("actual_points").upsert(computedRows, { onConflict: "match_id,player_id,source" });
+
+  // Record the Dream11 team total against his team. If he never edited the agent's team, his entry means he played it,
+  // so it becomes his team (marked unedited).
+  if (reportedTotal !== null) {
+    const { data: existing } = await db.from("user_teams").select("players_json").eq("match_id", data.matchId).maybeSingle();
+    if (existing) {
+      await db.from("user_teams").update({ players_json: { ...(existing.players_json as object), reportedTotal } }).eq("match_id", data.matchId);
+    } else if (data.agent) {
+      await db.from("user_teams").insert({
+        match_id: data.matchId,
+        players_json: { ids: data.agent.ids, agentStage: data.agent.stage, unedited: true, reportedTotal },
+        captain_id: data.agent.captainId,
+        vc_id: data.agent.viceId,
+        confirmed_at: new Date().toISOString(),
+      });
+    }
+  }
 
   revalidatePath("/");
   revalidatePath(`/matches/${cricsheetId}`);
   revalidatePath("/learning");
-  return { ok: true, message: `Saved ${rows.length} player${rows.length === 1 ? "" : "s"}. These real points now count in the comparison.`, errors: {} };
+  const parts = [rows.length ? `${rows.length} player${rows.length === 1 ? "" : "s"}` : null, reportedTotal !== null ? "the Dream11 team total" : null].filter(Boolean);
+  return { ok: true, message: `Saved ${parts.join(" and ")}. These real Dream11 numbers now count in the comparison.`, errors: {}, values };
 }

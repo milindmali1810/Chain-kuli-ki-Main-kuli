@@ -33,6 +33,8 @@ export interface MatchCard {
   date: string;
   teams: [string, string];
   venue: string;
+  // What Aryan's own confirmed team scored (null until every one of his players has points on file).
+  yourTeam?: { total: number | null; reportedTotal: number | null; unedited: boolean };
   stages: { final?: StageSummary; provisional?: StageSummary };
   actualSource: "dream11_manual" | "computed_from_scorecard" | null;
 }
@@ -42,11 +44,12 @@ export async function listMatches(): Promise<MatchCard[]> {
   const { data: recs } = await db.from("recommendations").select("id, match_id, stage, captain_id, vc_id, engine_notes_json");
   if (!recs?.length) return [];
   const matchIds = [...new Set(recs.map((r) => r.match_id))];
-  const [{ data: matches }, { data: teams }, { data: players }, { data: actual }] = await Promise.all([
+  const [{ data: matches }, { data: teams }, { data: players }, { data: actual }, { data: userTeams }] = await Promise.all([
     db.from("matches").select("id, cricsheet_match_id, start_time, team_a, team_b, venues(name, city)").in("id", matchIds),
     db.from("teams").select("id, name"),
     db.from("recommendation_players").select("recommendation_id, player_id, expected_points").in("recommendation_id", recs.map((r) => r.id)),
     db.from("actual_points").select("match_id, player_id, points, source").in("match_id", matchIds),
+    db.from("user_teams").select("match_id, players_json, captain_id, vc_id").in("match_id", matchIds),
   ]);
   const teamName = new Map((teams ?? []).map((t) => [t.id, t.name as string]));
 
@@ -63,6 +66,18 @@ export async function listMatches(): Promise<MatchCard[]> {
       stages: {},
       actualSource: actualRows.length === 0 ? null : hasManual ? "dream11_manual" : "computed_from_scorecard",
     };
+    // Aryan's own team: the total is shown only when every one of his players has points on file.
+    const mine = (userTeams ?? []).find((u) => u.match_id === m.id);
+    if (mine) {
+      const pj = (mine.players_json ?? {}) as Row;
+      const ids = (pj.ids ?? []) as number[];
+      const have = ids.length > 0 && ids.every((id) => actualMap.has(id));
+      card.yourTeam = {
+        total: have ? Math.round(teamScore(new Map([...actualMap].map(([id, v]) => [id, v.points])), ids, mine.captain_id, mine.vc_id, rules) * 10) / 10 : null,
+        reportedTotal: typeof pj.reportedTotal === "number" ? pj.reportedTotal : null,
+        unedited: pj.unedited === true,
+      };
+    }
     // Several rubric versions can hold a recommendation for the same match: the latest one is shown.
     for (const rec of recs.filter((r) => r.match_id === m.id).sort((a, b) => a.id - b.id)) {
       const ps = (players ?? []).filter((p) => p.recommendation_id === rec.id);

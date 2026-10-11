@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { RULES_PROFILES, type Role } from "@/config/rules";
-import { checkSelection, diffFromAgent, editMode, type EditorPlayer } from "@/lib/editorLogic";
+import { checkSelection, diffFromAgent, editMode, reconcile, type EditorPlayer } from "@/lib/editorLogic";
 
 // A made-up pool of 22 players: Team A ids 1-11, Team B ids 12-22, a legal role mix on each side, 9 credits each.
 const ROLES: Role[] = ["WK", "BAT", "BAT", "BAT", "BAT", "AR", "AR", "BOWL", "BOWL", "BOWL", "BOWL"];
@@ -72,6 +72,33 @@ describe("checkSelection: the same validator, live", () => {
 
   it("the checker and the agent's validator agree (same function), so a team valid here is valid there", () => {
     expect(checkSelection(pool, legal, 2, 3).result.profile).toBe("strict");
+  });
+});
+
+describe("reconcile: Dream11's team total against our calculation", () => {
+  it("nothing entered: nothing to compare", () => {
+    expect(reconcile(436, null)).toBeNull();
+    expect(reconcile(436, Number.NaN)).toBeNull();
+  });
+
+  it("an exact match supports the points table", () => {
+    const r = reconcile(436, 436)!;
+    expect(r).toMatchObject({ matches: true, difference: 0 });
+    expect(r.message).toContain("supports our points table");
+  });
+
+  it("half a point either way still counts as a match", () => {
+    expect(reconcile(436, 435.5)!.matches).toBe(true);
+    expect(reconcile(436, 436.5)!.matches).toBe(true);
+  });
+
+  it("a real gap is reported with its size and sign: Dream11 showed 451 against our 436 -> +15", () => {
+    const r = reconcile(436, 451)!;
+    expect(r).toMatchObject({ matches: false, difference: 15 });
+    expect(r.message).toBe(
+      "Our calculation is 436 but Dream11 showed 451 (a difference of +15). That usually means a points rule in our table differs from Dream11's, or a player's points were typed differently.",
+    );
+    expect(reconcile(436, 420)!.difference).toBe(-16);
   });
 });
 

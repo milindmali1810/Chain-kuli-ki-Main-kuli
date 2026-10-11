@@ -76,6 +76,31 @@ export function checkSelection(
   };
 }
 
+export interface Reconciliation {
+  computed: number; // our calculation from the per-player points, with captain and vice-captain extras
+  reported: number; // the team total Aryan read off Dream11
+  difference: number; // reported minus computed
+  matches: boolean;
+  message: string;
+}
+
+// Compares the team total Dream11 shows with our own calculation from the per-player points. A match supports our
+// points table; a gap points to a rule that differs from Dream11's (or a typing slip). Half a point is the tolerance.
+export function reconcile(computed: number, reported: number | null): Reconciliation | null {
+  if (reported === null || !Number.isFinite(reported)) return null;
+  const difference = Math.round((reported - computed) * 10) / 10;
+  const matches = Math.abs(difference) <= 0.5;
+  return {
+    computed,
+    reported,
+    difference,
+    matches,
+    message: matches
+      ? "Our calculation matches the Dream11 total you entered, which supports our points table."
+      : `Our calculation is ${computed} but Dream11 showed ${reported} (a difference of ${difference > 0 ? "+" : ""}${difference}). That usually means a points rule in our table differs from Dream11's, or a player's points were typed differently.`,
+  };
+}
+
 export interface Diff {
   removed: string[];
   added: string[];
