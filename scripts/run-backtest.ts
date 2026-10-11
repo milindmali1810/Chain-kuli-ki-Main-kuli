@@ -12,6 +12,7 @@ import { DEFAULT_RULES_PROFILE, RULES_PROFILES } from "../src/config/rules";
 import { loadHistoryRows, monthsBefore, serverDb } from "../src/lib/db";
 import { seedCreditsFor } from "../src/lib/seedCredits";
 import { inferRolesFromRows } from "../src/lib/inferRole";
+import { teamScore } from "../src/lib/teamScore";
 import { predict, type PoolPlayer, type Prediction } from "../src/lib/predict";
 import { scorePlayerMatch, type PlayerMatchStats } from "../src/lib/scorePlayerMatch";
 import { selectTeam, type Candidate } from "../src/lib/selectTeam";
@@ -138,7 +139,9 @@ async function main() {
     console.log(`  ${p.deathLog.join(" ")}`);
     if (p.notes.length) console.log(`  Notes: ${p.notes.join(" | ")}`);
     console.log(`  Pitch: ${p.pitch.tag}${p.pitch.index === null ? "" : ` (index ${(p.pitch.index * 100).toFixed(1)}%, ${p.pitch.matches} matches${p.pitch.lowConfidence ? ", LOW confidence" : ""})`}; team form: ${Object.entries(p.teamForm).map(([t, f]) => `${t} x${f.multiplier.toFixed(3)}`).join(", ")}`);
-    const predictedTotal = p.selection.score;
+    // Same formula for both sides (src/lib/teamScore.ts), so predicted and actual are comparable.
+    const expectedMap = new Map(p.selected.map((s) => [s.candidate.id, s.candidate.expected]));
+    const predictedTotal = teamScore(expectedMap, p.selected.map((s) => s.candidate.id), p.captains!.captainId, p.captains!.viceCaptainId, rules);
     console.log(`  Predicted team score (with C/VC): ${predictedTotal.toFixed(1)}   ACTUAL team score (with C/VC): ${teamTotal(p)?.toFixed(1)}\n`);
   };
   show(provisional, "PROVISIONAL, before the toss");

@@ -13,7 +13,8 @@
     "fetch:weather": "tsx --env-file=.env.local scripts/fetch-weather.ts",
     "seed:credits": "tsx --env-file=.env.local scripts/seed-credits.ts",
     "backtest": "tsx --env-file=.env.local scripts/run-backtest.ts",
-    "explain": "tsx --env-file=.env.local scripts/explain.ts"
+    "explain": "tsx --env-file=.env.local scripts/explain.ts",
+    "calibrate": "tsx --env-file=.env.local scripts/calibrate.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Role } from "@/config/rules";
 import type { HistoryRow } from "@/lib/history";
 import { predict, type PredictInput } from "@/lib/predict";
+import { RUBRIC } from "@/config/rubric";
 
 // A made-up league: two teams of 11 with a legal role mix, 8 past matches each, one match per month.
 const ROLES: Role[] = ["WK", "BAT", "BAT", "BAT", "BAT", "AR", "AR", "BOWL", "BOWL", "BOWL", "BOWL"];
@@ -78,6 +79,18 @@ describe("predict: the whole pipeline", () => {
     const withFuture = predict(input);
     expect(withFuture.selected.map((s) => s.candidate.id)).toEqual(clean.selected.map((s) => s.candidate.id));
     expect(withFuture.pool.map((s) => s.candidate.expected)).toEqual(clean.pool.map((s) => s.candidate.expected));
+  });
+
+  it("a learned role correction scales that role's expected points and is recorded: batters x0.8", () => {
+    const base = predict(league());
+    const input = league();
+    input.cfg = { ...RUBRIC, calibration: { ...RUBRIC.calibration, BAT: { ...RUBRIC.calibration.BAT, value: 0.8 } } };
+    const corrected = predict(input);
+    const batter = (p: typeof base) => p.pool.find((x) => x.candidate.id === 3)!;
+    const bowler = (p: typeof base) => p.pool.find((x) => x.candidate.id === 9)!;
+    expect(batter(corrected).candidate.expected).toBeCloseTo(batter(base).candidate.expected * 0.8, 6);
+    expect(batter(corrected).factors.calibration).toBe(0.8);
+    expect(bowler(corrected).candidate.expected).toBeCloseTo(bowler(base).candidate.expected, 6); // other roles untouched
   });
 
   it("better recent performances raise expected points", () => {

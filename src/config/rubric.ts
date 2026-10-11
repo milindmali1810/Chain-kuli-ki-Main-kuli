@@ -1,4 +1,5 @@
 import { sourced, type Sourced } from "./sourced";
+import type { Role } from "./rules";
 
 // Rubric parameters as data. Source: docs/RUBRIC.md (starting hypotheses, all tagged "guessing").
 // The learning loop (M6) proposes versioned changes to these; nothing here is hardcoded in logic.
@@ -7,6 +8,9 @@ const g = (value: number, note: string): Sourced<number> => sourced(value, "gues
 
 export interface RubricConfig {
   id: string;
+  // Per-role correction learned from predicted-vs-actual points. 1 means no correction. Changed ONLY when Aryan
+  // accepts a proposal on the Learning screen, which creates a new rubric version.
+  calibration: Record<Role, Sourced<number>>;
   form: {
     recentMatches: Sourced<number>; // N_RECENT
     longMatches: Sourced<number>;
@@ -56,8 +60,11 @@ export interface RubricConfig {
   };
 }
 
+const neutral = () => sourced(1, "guessing", "starts neutral; the learning loop proposes changes from predicted-vs-actual evidence");
+
 export const RUBRIC: RubricConfig = {
   id: "v1.0",
+  calibration: { WK: neutral(), BAT: neutral(), AR: neutral(), BOWL: neutral() },
   form: {
     recentMatches: g(8, "section 3a N_RECENT"),
     longMatches: g(30, "v1 choice"),

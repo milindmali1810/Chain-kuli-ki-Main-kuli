@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { RUBRIC, type RubricConfig } from "@/config/rubric";
 import type { HistoryRow } from "./history";
 import type { StatsNoRole } from "./inferRole";
 
@@ -48,3 +49,20 @@ export async function loadHistoryRows(db: SupabaseClient, fromDate: string, befo
 }
 
 export { monthsBefore } from "./dates";
+
+// The rubric version currently in force. Older stored versions may lack newer settings, so missing parts fall
+// back to the defaults in src/config/rubric.ts.
+export async function loadActiveRubric(db: SupabaseClient): Promise<{ id: number; cfg: RubricConfig } | null> {
+  const { data, error } = await db
+    .from("rubric_versions")
+    .select("id, config_json")
+    .eq("status", "active")
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`rubric_versions: ${error.message}`);
+  if (!data) return null;
+  const stored = (data.config_json ?? {}) as Partial<RubricConfig>;
+  const cfg: RubricConfig = { ...RUBRIC, ...stored, calibration: { ...RUBRIC.calibration, ...(stored.calibration ?? {}) } };
+  return { id: data.id, cfg };
+}

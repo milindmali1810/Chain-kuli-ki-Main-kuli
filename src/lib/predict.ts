@@ -49,6 +49,7 @@ export interface Factors {
   longMean: number | null;
   venueMultiplier: number;
   teamFormMultiplier: number;
+  calibration?: number; // learned per-role correction (1 = none); absent on predictions made before it existed
   pPlay: number;
   deathBonus: number;
   death: Pick<DeathProfile, "eligible" | "profile" | "score" | "deathBalls" | "deathEconomy" | "lowConfidence"> | null;
@@ -145,7 +146,8 @@ export function predict(input: PredictInput): Prediction {
     const shrunk = shrinkToPrior(f.form.base!, f.form.effectiveN, priors[role], cfg.form.shrinkK.value);
     const venueM = venueMultiplier(role, pitch, cfg);
     const formM = teamForm[teamName]?.multiplier ?? 1;
-    const expectedIfPlays = shrunk * venueM * formM;
+    const calibration = cfg.calibration?.[role]?.value ?? 1;
+    const expectedIfPlays = shrunk * venueM * formM * calibration;
 
     const recent = (byPlayer.get(p.playerId) ?? [])
       .filter((r) => r.stats.inPlayingXI)
@@ -171,7 +173,7 @@ export function predict(input: PredictInput): Prediction {
       factors: {
         role, basePoints: f.form.base!, shrunkBase: shrunk, rolePrior: priors[role], matchesUsed: f.form.matches,
         evidence: f.form.effectiveN, recentMean: f.form.recentMean, longMean: f.form.longMean,
-        venueMultiplier: venueM, teamFormMultiplier: formM, pPlay: p.pPlay, deathBonus: 0,
+        venueMultiplier: venueM, teamFormMultiplier: formM, calibration, pPlay: p.pPlay, deathBonus: 0,
         death: death && { eligible: death.eligible, profile: death.profile, score: death.score, deathBalls: death.deathBalls, deathEconomy: death.deathEconomy, lowConfidence: death.lowConfidence },
         blankRate, avgBallsFaced: batted.length ? mean(batted) : null, avgOvers: bowled.length ? mean(bowled) : null, lastPoints,
       },
