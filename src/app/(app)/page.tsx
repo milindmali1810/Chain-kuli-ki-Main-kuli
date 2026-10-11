@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Icon } from "@/components/icons";
 import { formatDate, num } from "@/lib/format";
@@ -43,6 +44,7 @@ function MatchTile({ m }: { m: MatchCard }) {
 }
 
 async function MatchList() {
+  await connection(); // read live data per visit; never run this while the app is being built
   const matches = await listMatches();
   if (matches.length === 0) {
     return (

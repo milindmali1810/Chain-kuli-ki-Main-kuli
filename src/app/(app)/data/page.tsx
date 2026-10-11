@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Icon } from "@/components/icons";
 import { ROLE_LABEL } from "@/lib/format";
@@ -9,6 +10,7 @@ export const metadata = { title: "Data" };
 interface Left { playerId: number; name: string; reasons: Set<string>; matches: number }
 
 async function DataView() {
+  await connection(); // read live data per visit; never run this while the app is being built
   const db = serverDb();
   const [{ data: recs }, { data: overrides }] = await Promise.all([
     db.from("recommendations").select("match_id, engine_notes_json"),

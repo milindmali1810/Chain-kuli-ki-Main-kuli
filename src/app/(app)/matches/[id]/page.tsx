@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Icon } from "@/components/icons";
 import { ROLE_LABEL, formatDate, num, pctEffect } from "@/lib/format";
@@ -65,6 +66,7 @@ function Weather({ w }: { w: NonNullable<Awaited<ReturnType<typeof getMatch>>>["
 }
 
 async function MatchView({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ stage?: string }> }) {
+  await connection(); // read live data per visit; never run this while the app is being built
   const { id } = await params;
   const { stage: stageParam } = await searchParams;
   const match = await getMatch(id);

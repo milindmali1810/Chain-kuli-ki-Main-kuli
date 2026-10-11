@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Icon } from "@/components/icons";
 import type { GroupStat } from "@/lib/calibration";
@@ -84,6 +85,7 @@ function Proposals({ v }: { v: LearningView }) {
 }
 
 async function LearningView() {
+  await connection(); // read live data per visit; never run this while the app is being built
   const v = await getLearning();
   const m = v.allMetrics;
 
