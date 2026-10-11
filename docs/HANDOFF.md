@@ -60,12 +60,18 @@ Milestone 1 is built and tested (90 passing tests). The scaffold is on GitHub an
 0. Milind to paste SUPABASE_SERVICE_ROLE_KEY into .env.local (server-only). PIN 3030 is short and guessable; consider a longer one before the viva.
 1. Three Dream11 screenshots (team-creation screen, in-app points page, backup screen) would settle the unverified rules.
 2. Confirm the demo league and that credits are entered manually.
-3. Test Cricsheet freshness for the India vs West Indies T20Is of 6 and 9 Oct 2026 in M2; if missing, seed from older completed T20Is and label as seeded.
+3. Cricsheet freshness (checked 11 Oct 2026 using recently_added_7_male_json.zip): the 6 Oct 2026 West Indies v India T20I (Lucknow, file 1529230) IS present. The 9 Oct match was not in that 7-day file; confirm against the full t20s_json.zip (22.9 MB, 5,775 matches) in M2.3. The series is a West Indies tour of India: ODIs on 30 Sep and 3 Oct, then T20Is from 6 Oct. Seed from older completed T20Is, labelled seeded, only if needed.
 4. Batting hand and bowling type source (manual table fallback).
 5. Components Map: build the swimlane grid (actors as rows; Trigger, Input, Context, Processing, AI, Output as columns) in M7.
 
+## Milestone 2 progress
+- 2.1 DONE: supabase/migrations/20261011_001_initial_schema.sql applied to project hpjkyuziarokukhxabru. 24 tables (the 22 in ARCHITECTURE.md section 4 plus player_match_lines and ingestion_runs), RLS on, no policies: only the secret key can read or write. Verified: secret key can write, public key reads nothing and cannot write. data_origin column (ingested|seeded|computed|manual) on computed/seeded tables. player_phase_stats has an added `discipline` column (bat|bowl).
+- 2.2 DONE: Cricsheet freshness checked (see open item 3).
+- 2.3 NEXT: ingestion script in scripts/ (Cricsheet first, then Apify, weather). Needs Milind's OK to download the full t20s_json.zip (22.9 MB). Runs outside Vercel, writes with the secret key. Install @supabase/supabase-js then.
+- Open question for Milind: which upcoming match is the demo match, and where do fixtures/squads come from (Apify Cricbuzz actor)?
+
 ## Next step
-Milestone 2: Supabase schema (see ARCHITECTURE.md section 4) and ingestion script (Cricsheet first, then Apify, weather). Ingestion runs outside Vercel. Wait for Milind to say go.
+Continue Milestone 2 at 2.3. Ingestion runs outside Vercel. Wait for Milind to say go.
 
 (Milestone 1 prompt, now done, kept for reference:)
 "Set up a Next.js (TypeScript) project with Vitest. Read docs/RULES_LOCKED.md and docs/RUBRIC.md first. Create src/config/rules.ts with the team rules as plain data (profiles strict and loose, each value with source and status), src/config/points.ts with the T20 points table (profiles standard and variant), validateTeam(team, rules) returning every violated rule in plain English, validateBackupSwap, and scorePlayerMatch(stats, pointsTable) as a pure function. Write tests: a valid team passes, one test per rule violation (credits, size, team cap, each role limit, missing or same captain and vice-captain), and a worked scorecard example I can check by hand. Before coding, explain in plain English what each file does and why the rules are data and not code. Then run the tests and show me the results."
