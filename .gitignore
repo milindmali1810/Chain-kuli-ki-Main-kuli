@@ -45,3 +45,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# downloaded raw data (large, reproducible by the ingestion script)
+/data/
