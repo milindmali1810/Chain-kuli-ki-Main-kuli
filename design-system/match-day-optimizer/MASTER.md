@@ -258,3 +258,24 @@ Why: Aryan asked for calmer colours, a few effects and cricket pictures, and a s
 - Match page (agent-found matches): status chip, then a three-step strip (1 Review the team, 2 Edit and confirm, 3 Enter points) whose current step follows `matchState`; the team and captain come first; pitch, summary and limits are folded into "More about this team".
 - One decision function (`src/lib/matchState.ts`, tested) drives the chip, the button and the step, so every screen says the same thing.
 - Targets: 44 px minimum, no horizontal scroll at 375 px (checked on Matches, a match, Learning and Data).
+
+---
+
+## Revision 2, 13 Oct 2026: "Sky and cream" (REPLACES the green palette above)
+
+Milind found the green too strong. He chose **soft sky blue and cream** and a **full cricket-ground background scene**.
+
+| Role | Light | Dark |
+|------|-------|------|
+| Background | `#f7f4ec` (warm cream) | `#121b2b` (soft navy) |
+| Surface (about 90% opaque) / Surface 2 | `#ffffff` / `#edf2f8` | `#1a2638` / `#223149` |
+| Text / Muted | `#1c2a40` / `#52627a` | `#e6edf7` / `#a9b8cf` |
+| Primary (sky blue) | `#2a6a9e` | `#8ec5f2` |
+| Accent (actual bars) | `#a85a14` | `#f0b35a` |
+| Border | `#d8e0ec` | `#31425c` |
+
+Lowest text contrast 5.08:1 on flat colours; worst case with the art underneath 4.5:1 or better (art opacity 14%). Top bar, bottom bar and sidebar stay fully solid; cards are slightly see-through so the scene shows gently behind them.
+
+**Background scene** (`public/art/cricket-scene.svg`, own artwork, single colour used as a CSS mask): floodlight towers, a trophy, curved stands, the boundary rope and 30-yard circle, a pitch with batter, bowler, wicketkeeper and fielders, and a helmet, bat and ball in the corners. No stripes any more.
+
+On phones a match row stacks: name, then venue, then the status chip (a long status used to overlap the name).

@@ -1,18 +1,93 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none" stroke="#000" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
-  <!-- stumps and bails -->
-  <rect x="128" y="196" width="14" height="168" rx="7"/>
-  <rect x="193" y="196" width="14" height="168" rx="7"/>
-  <rect x="258" y="196" width="14" height="168" rx="7"/>
-  <path d="M142 190h51M207 190h51"/>
-  <!-- crease lines -->
-  <path d="M60 364h280M96 330h208"/>
-  <!-- ball with seam -->
-  <circle cx="318" cy="268" r="44"/>
-  <path d="M290 238c18 10 18 50 0 60M346 238c-18 10-18 50 0 60"/>
-  <!-- bat -->
-  <g transform="rotate(-24 70 250)">
-    <rect x="48" y="150" width="44" height="150" rx="14"/>
-    <path d="M70 150v-62"/>
-    <rect x="62" y="64" width="16" height="30" rx="8"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+  <defs>
+    <!-- a simple standing fielder, about 60 units tall -->
+    <g id="fielder">
+      <circle cx="0" cy="-52" r="7" fill="#000" stroke="none"/>
+      <path d="M0 -44v24M0 -38l-12 14M0 -38l12 12M0 -20l-9 20M0 -20l9 20" stroke-width="6"/>
+    </g>
+    <!-- floodlight tower: lamp panel on a pole that ends above the stands -->
+    <g id="light">
+      <rect x="-34" y="0" width="68" height="42" rx="6"/>
+      <path d="M-34 14h68M-34 28h68M-11 0v42M11 0v42" stroke-width="3"/>
+      <path d="M0 42v150" stroke-width="7"/>
+      <path d="M-16 192h32" stroke-width="7"/>
+    </g>
+  </defs>
+
+  <!-- floodlights -->
+  <use href="#light" x="86" y="36" opacity="0.7"/>
+  <use href="#light" x="316" y="72" opacity="0.5"/>
+  <use href="#light" x="884" y="72" opacity="0.5"/>
+  <use href="#light" x="1114" y="36" opacity="0.7"/>
+
+  <!-- trophy above the stands -->
+  <g transform="translate(600 24)">
+    <path d="M-30 0h60v34c0 26-14 42-30 46c-16-4-30-20-30-46z"/>
+    <path d="M-30 8h-14c0 22 8 34 22 36M30 8h14c0 22-8 34-22 36"/>
+    <path d="M0 80v24M-18 104h36M-26 118h52"/>
+  </g>
+
+  <!-- stands: roof and three tiers curving around the ground, with stairways -->
+  <path d="M30 380Q600 150 1170 380" stroke-width="6"/>
+  <path d="M70 404Q600 205 1130 404"/>
+  <path d="M112 428Q600 262 1088 428"/>
+  <path d="M156 452Q600 318 1044 452"/>
+  <path d="M250 400l-26 52M390 342l-18 64M520 308l-8 62M680 308l8 62M810 342l18 64M950 400l26 52" stroke-width="3"/>
+  <path d="M600 190v-26l22 8l-22 8" stroke-width="3"/>
+
+  <!-- ground: boundary rope and the 30-yard circle -->
+  <ellipse cx="600" cy="528" rx="480" ry="84" stroke-dasharray="1 15" stroke-width="7"/>
+  <ellipse cx="600" cy="528" rx="330" ry="58" stroke-dasharray="14 12" stroke-width="3"/>
+
+  <!-- the pitch and the action, drawn larger so it is the centrepiece -->
+  <g transform="translate(600 548) scale(1.7) translate(-600 -548)">
+    <path d="M556 488L644 488L670 552L530 552Z"/>
+    <path d="M548 506h104M538 534h124" stroke-width="3"/>
+    <!-- far stumps and near stumps -->
+    <path d="M594 474v14M600 474v14M606 474v14" stroke-width="4"/>
+    <path d="M586 520v34M600 520v34M614 520v34" stroke-width="5"/>
+    <!-- batter with bat at the near end -->
+    <g transform="translate(652 552)">
+      <circle cx="0" cy="-86" r="9" fill="#000" stroke="none"/>
+      <path d="M-10 -96q10 -10 20 0" stroke-width="5"/>
+      <path d="M0 -76v36M0 -68l-16 18M0 -68l18 10M0 -40l-12 38M0 -40l14 38" stroke-width="7"/>
+      <path d="M-16 -50l-24 56" stroke-width="9"/>
+    </g>
+    <!-- wicketkeeper crouching behind the stumps -->
+    <g transform="translate(556 550)">
+      <circle cx="0" cy="-40" r="8" fill="#000" stroke="none"/>
+      <path d="M0 -32l6 16l-12 16M6 -16l16 14M-6 0l-14 2" stroke-width="6"/>
+    </g>
+    <!-- bowler in delivery stride at the far end -->
+    <g transform="translate(632 486)">
+      <circle cx="0" cy="-48" r="6" fill="#000" stroke="none"/>
+      <path d="M0 -40v22M0 -36l-4 -22M0 -34l12 12M0 -18l-12 18M0 -18l12 18" stroke-width="5"/>
+    </g>
+  </g>
+
+  <!-- fielders -->
+  <use href="#fielder" x="300" y="512" opacity="0.8"/>
+  <use href="#fielder" x="430" y="462" opacity="0.8"/>
+  <use href="#fielder" x="770" y="462" opacity="0.8"/>
+  <use href="#fielder" x="900" y="514" opacity="0.8"/>
+  <use href="#fielder" x="248" y="570" opacity="0.8"/>
+  <use href="#fielder" x="960" y="574" opacity="0.8"/>
+
+  <!-- helmet, bottom left -->
+  <g transform="translate(26 596)">
+    <path d="M0 0c0 -38 20 -58 52 -58s52 20 52 58z"/>
+    <path d="M26 -2h60M30 -14h56" stroke-width="3"/>
+    <path d="M34 -2v22M54 -2v24M74 -2v22M94 -2v18" stroke-width="3"/>
+  </g>
+
+  <!-- bat and ball, bottom right -->
+  <g transform="translate(1086 600) rotate(-26)">
+    <rect x="-18" y="-112" width="36" height="96" rx="12"/>
+    <path d="M0 -112v-40"/>
+    <rect x="-7" y="-182" width="14" height="32" rx="7"/>
+  </g>
+  <g transform="translate(1160 596)">
+    <circle r="24"/>
+    <path d="M-15 -15c9 7 9 23 0 30M15 -15c-9 7 -9 23 0 30" stroke-width="3"/>
   </g>
 </svg>

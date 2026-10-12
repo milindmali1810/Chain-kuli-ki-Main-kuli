@@ -1,31 +1,30 @@
-/* Design tokens from design-system/match-day-optimizer/MASTER.md ("pitch and twilight" palette, revised 13 Oct 2026).
-   Calm greens like a cricket pitch, warm off-white in light mode, deep green-black in dark mode. Light and dark are designed
-   together; every text pair is checked for 4.5:1 (lowest 5.86:1). */
+/* Design tokens from design-system/match-day-optimizer/MASTER.md ("sky and cream" palette, revised 13 Oct 2026 after Milind
+   found the green too strong). Soft navy text on warm cream with sky-blue accents; dark mode is soft navy, not black.
+   Light and dark are designed together; every text pair is checked for 4.5:1 (lowest 5.08:1). */
 
 :root {
-  --bg: #f4f7f1;
-  --surface: #ffffff;
-  --surface-2: #ebf1e8;
-  --text: #14231a;
-  --text-muted: #4a5d51;
-  --border: #d4dfd0;
-  --primary: #1b6a46;
+  --bg: #f7f4ec;
+  --surface: rgb(255 255 255 / 0.9); /* slightly see-through so the ground drawing shows gently behind cards */
+  --surface-2: #edf2f8;
+  --text: #1c2a40;
+  --text-muted: #52627a;
+  --border: #d8e0ec;
+  --primary: #2a6a9e;
   --on-primary: #ffffff;
-  --primary-soft: #dcefe2;
-  --on-primary-soft: #124a31;
-  --accent: #9a5208;
-  --good: #166534;
-  --good-soft: #dcf3e1;
+  --primary-soft: #e0eefa;
+  --on-primary-soft: #1c4a73;
+  --accent: #a85a14;
+  --good: #17673f;
+  --good-soft: #e0f3e6;
   --bad: #a61e1e;
-  --bad-soft: #fde4e4;
-  --warn: #8a4a07;
-  --warn-soft: #fdf0d2;
-  --bar-predicted: #1b6a46;
-  --bar-actual: #9a5208;
-  --focus: #1b6a46;
-  --art: #1b6a46; /* colour of the faint cricket drawing in the background */
-  --stripe: rgba(27, 106, 70, 0.045); /* mowed-pitch stripes */
-  --shadow: rgba(20, 35, 26, 0.35);
+  --bad-soft: #fde8e8;
+  --warn: #85470a;
+  --warn-soft: #fdf1d6;
+  --bar-predicted: #2a6a9e;
+  --bar-actual: #a85a14;
+  --focus: #2a6a9e;
+  --art: #2a6a9e; /* colour of the faint cricket-ground drawing in the background */
+  --shadow: rgba(28, 42, 64, 0.32);
 
   --font-sans: var(--font-fira-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-num: var(--font-fira-code), ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -41,29 +40,28 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d1913;
-    --surface: #13231a;
-    --surface-2: #1a3025;
-    --text: #e7f0ea;
-    --text-muted: #a6bcad;
-    --border: #2b4336;
-    --primary: #74d6a5;
-    --on-primary: #07130c;
-    --primary-soft: #1b3b2b;
-    --on-primary-soft: #cdf1dc;
+    --bg: #121b2b;
+    --surface: rgb(26 38 56 / 0.88);
+    --surface-2: #223149;
+    --text: #e6edf7;
+    --text-muted: #a9b8cf;
+    --border: #31425c;
+    --primary: #8ec5f2;
+    --on-primary: #0c1626;
+    --primary-soft: #243a57;
+    --on-primary-soft: #d3e8fb;
     --accent: #f0b35a;
     --good: #8be8ac;
-    --good-soft: #14361f;
+    --good-soft: #173a28;
     --bad: #ffaaaa;
-    --bad-soft: #3d1719;
+    --bad-soft: #3d1b1f;
     --warn: #fcd34d;
-    --warn-soft: #3a2a0a;
-    --bar-predicted: #74d6a5;
+    --warn-soft: #3a2e0f;
+    --bar-predicted: #8ec5f2;
     --bar-actual: #f0b35a;
-    --focus: #74d6a5;
-    --art: #74d6a5;
-    --stripe: rgba(116, 214, 165, 0.05);
-    --shadow: rgba(0, 0, 0, 0.6);
+    --focus: #8ec5f2;
+    --art: #8ec5f2;
+    --shadow: rgba(0, 0, 0, 0.55);
   }
 }
 
@@ -254,20 +252,19 @@ tr:last-child td { border-bottom: 0; }
 
 /* ---------- Look and feel (13 Oct 2026): background art, home list, steps, gentle effects ---------- */
 
-/* Background: soft mowed-pitch stripes with a faint glow, and a faint drawing of stumps, ball and bat (own artwork,
-   public/art/cricket-scene.svg). Both sit behind everything, never take clicks, and are too faint to affect text contrast. */
+/* Background: a soft sky glow, and a faint drawing of a cricket ground (floodlights, stands, pitch with batter, bowler and
+   fielders, trophy, helmet, bat and ball; own artwork in public/art/cricket-scene.svg) along the bottom of the page.
+   Decorative only: behind everything, never takes clicks, and too faint to affect text contrast (cards stay solid). */
 body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(900px 480px at 88% -8%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 70%),
-    repeating-linear-gradient(90deg, transparent 0 72px, var(--stripe) 72px 144px);
+  background: radial-gradient(1000px 520px at 85% -10%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 70%);
 }
 body::after {
-  content: ""; position: fixed; right: 3%; bottom: calc(var(--bottom-nav-h) + 8px); width: min(380px, 70vw); aspect-ratio: 1;
-  z-index: -1; pointer-events: none; background: var(--art); opacity: 0.08;
-  -webkit-mask: url(/art/cricket-scene.svg) no-repeat center / contain; mask: url(/art/cricket-scene.svg) no-repeat center / contain;
+  content: ""; position: fixed; left: 0; right: 0; bottom: var(--bottom-nav-h); height: min(62vh, 560px); z-index: -1; pointer-events: none;
+  background: var(--art); opacity: 0.14;
+  -webkit-mask: url(/art/cricket-scene.svg) no-repeat center bottom / auto 100%; mask: url(/art/cricket-scene.svg) no-repeat center bottom / auto 100%;
 }
-@media (min-width: 900px) { body::after { right: 40px; bottom: 24px; width: 460px; } }
+@media (min-width: 900px) { body::after { left: var(--nav-w); bottom: 0; height: min(70vh, 640px); } }
 
 .main { animation: rise 260ms ease-out both; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -322,3 +319,17 @@ details.more > summary::after { content: "+"; margin-left: auto; font-size: 1.25
 details.more[open] > summary::after { content: "–"; }
 details.more > .body { padding: 0 var(--s4) var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
 .seg { align-self: flex-start; max-width: 100%; }
+
+/* On phones the status goes under the match name, so a long status can never run into it */
+@media (max-width: 520px) {
+  .match-row { flex-direction: column; align-items: stretch; gap: var(--s2); }
+  .match-row .side { max-width: none; justify-content: space-between; flex-wrap: nowrap; }
+  .match-row .side .chip { white-space: normal; }
+  .match-row .side svg { display: block; margin-left: auto; }
+}
+
+/* Bars that content scrolls under stay solid (cards are see-through, bars must not be) */
+.topbar, .bottomnav, .sidebar { background: color-mix(in srgb, var(--surface) 100%, var(--bg)); background-color: var(--bg-solid, var(--surface)); }
+:root { --bg-solid: #ffffff; }
+@media (prefers-color-scheme: dark) { :root { --bg-solid: #1a2638; } }
+.skip { background: var(--bg-solid); }
