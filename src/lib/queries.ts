@@ -37,7 +37,9 @@ export interface MatchCard {
   yourTeam?: { total: number | null; reportedTotal: number | null; unedited: boolean };
   stages: { final?: StageSummary; provisional?: StageSummary };
   actualSource: "dream11_manual" | "computed_from_scorecard" | null;
-  upcoming?: boolean; // added by hand, no team recommended yet
+  upcoming?: boolean; // a match that has not been played: found by the agent or added by hand
+  startUtc?: string; // exact start time, for upcoming matches
+  creditsSeeded?: boolean; // true unless every credit was typed from Dream11
 }
 
 export async function listMatches(): Promise<MatchCard[]> {
@@ -67,6 +69,8 @@ export async function listMatches(): Promise<MatchCard[]> {
       venue: venueLabel((m.venues as unknown as Row | null)?.name, (m.venues as unknown as Row | null)?.city),
       stages: {},
       actualSource: actualRows.length === 0 ? null : hasManual ? "dream11_manual" : "computed_from_scorecard",
+      upcoming: String(m.cricsheet_match_id).startsWith("live-") && actualRows.length === 0,
+      startUtc: String(m.start_time),
     };
     // Aryan's own team: the total is shown only when every one of his players has points on file.
     const mine = (userTeams ?? []).find((u) => u.match_id === m.id);
@@ -87,10 +91,15 @@ export async function listMatches(): Promise<MatchCard[]> {
       const predicted = teamScore(new Map(ps.map((p) => [p.player_id, Number(p.expected_points)])), ids, rec.captain_id, rec.vc_id, rules);
       const actualTotal = actualRows.length === 0 ? null : teamScore(new Map([...actualMap].map(([id, v]) => [id, v.points])), ids, rec.captain_id, rec.vc_id, rules);
       card.stages[rec.stage as "final" | "provisional"] = { predicted, actual: actualTotal, valid: rec.engine_notes_json?.validation?.valid ?? true };
+      card.creditsSeeded = rec.engine_notes_json?.creditsSource !== "manual";
     }
     cards.push(card);
   }
-  return [...upcoming, ...cards].sort((a, b) => b.date.localeCompare(a.date) || b.cricsheetId.localeCompare(a.cricsheetId));
+  // Matches still to be played come first, soonest first; played ones follow, newest first.
+  const all = [...upcoming, ...cards];
+  const soon = all.filter((c) => c.upcoming).sort((a, b) => String(a.startUtc).localeCompare(String(b.startUtc)));
+  const played = all.filter((c) => !c.upcoming).sort((a, b) => b.date.localeCompare(a.date) || b.cricsheetId.localeCompare(a.cricsheetId));
+  return [...soon, ...played];
 }
 
 // Matches Aryan added by hand that have no recommended team yet (the squad and credits come in the next steps).
@@ -111,6 +120,7 @@ async function listUpcomingWithoutTeam(db: ReturnType<typeof serverDb>, haveTeam
     stages: {},
     actualSource: null,
     upcoming: true,
+    startUtc: String(m.start_time),
   }));
 }
 
@@ -141,6 +151,7 @@ export interface StageView {
   predicted: number;
   actual: number | null;
   totalCredits: number;
+  creditsSeeded: boolean; // false only when every credit was typed from Dream11
   captainReason: string | null;
   viceReason: string | null;
   summary: string | null;
@@ -155,6 +166,8 @@ export interface MatchDetail {
   cricsheetId: string;
   matchId: number;
   date: string;
+  startUtc: string;
+  upcoming: boolean; // not played yet and found by the agent or added by hand
   teams: [string, string];
   venue: string;
   weather: { tempC: number | null; humidityPct: number | null; dewPointC: number | null; rainMm: number | null; cloudPct: number | null; windKmh: number | null } | null;
@@ -229,6 +242,7 @@ export async function getMatch(cricsheetId: string): Promise<MatchDetail | null>
       predicted: teamScore(exp, ids, rec.captain_id, rec.vc_id, rules),
       actual: hasActual ? teamScore(act, ids, rec.captain_id, rec.vc_id, rules) : null,
       totalCredits: Math.round(players.reduce((a, p) => a + p.credits, 0) * 10) / 10,
+      creditsSeeded: notes.creditsSource !== "manual",
       captainReason: rec.captain_reason,
       viceReason: rec.vc_reason,
       summary: rec.summary_text,
@@ -246,6 +260,8 @@ export async function getMatch(cricsheetId: string): Promise<MatchDetail | null>
     cricsheetId: m.cricsheet_match_id,
     matchId: m.id,
     date: String(m.start_time).slice(0, 10),
+    startUtc: String(m.start_time),
+    upcoming: String(m.cricsheet_match_id).startsWith("live-") && !hasActual,
     teams: [teamName.get(m.team_a) ?? "?", teamName.get(m.team_b) ?? "?"],
     venue: venueLabel((m.venues as unknown as Row | null)?.name, (m.venues as unknown as Row | null)?.city),
     weather: w,

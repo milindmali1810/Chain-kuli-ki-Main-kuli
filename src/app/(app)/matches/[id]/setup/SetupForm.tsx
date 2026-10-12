@@ -60,7 +60,7 @@ export function SetupForm({ cricsheetId, teams }: { cricsheetId: string; teams: 
                       type="text"
                       inputMode="decimal"
                       autoComplete="off"
-                      placeholder="credits"
+                      placeholder={p.seededCredit !== null ? `${p.seededCredit} (est.)` : "credits"}
                       defaultValue={state.values[`cr_${p.id}`] ?? p.credit ?? ""}
                       aria-invalid={err ? true : undefined}
                     />

@@ -14,6 +14,7 @@
     "seed:credits": "tsx --env-file=.env.local scripts/seed-credits.ts",
     "backtest": "tsx --env-file=.env.local scripts/run-backtest.ts",
     "explain": "tsx --env-file=.env.local scripts/explain.ts",
+    "sync:fixtures": "tsx --env-file=.env.local scripts/sync-fixtures.ts",
     "calibrate": "tsx --env-file=.env.local scripts/calibrate.ts",
     "gen:map": "tsx scripts/gen-components-map.ts"
   },

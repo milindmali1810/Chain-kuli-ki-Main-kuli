@@ -9,6 +9,7 @@ import { DEFAULT_RULES_PROFILE, RULES_PROFILES, type Role } from "@/config/rules
 import { loadActiveRubric, loadHistoryRows, monthsBefore } from "./db";
 import { inferRolesFromRows, type StatsNoRole } from "./inferRole";
 import { predict, type PoolPlayer } from "./predict";
+import { seedCreditsFor } from "./seedCredits";
 
 const WINDOW_MONTHS = 36;
 
@@ -55,9 +56,23 @@ export async function pickTeamForMatch(db: SupabaseClient, cricsheetId: string):
   const rules = RULES_PROFILES[DEFAULT_RULES_PROFILE];
   const points = POINTS_PROFILES[DEFAULT_POINTS_PROFILE];
 
-  const { data: xi } = await db.from("predicted_xi").select("player_id, team_id, source, confidence").eq("match_id", match.id);
-  const { data: creditRows } = await db.from("credits").select("player_id, credits").eq("match_id", match.id);
+  let { data: xi } = await db.from("predicted_xi").select("player_id, team_id, source, confidence").eq("match_id", match.id);
+  // Nobody has typed a squad: the agent builds the predicted XI itself from each side's last internationals.
+  if (!xi || xi.length === 0) {
+    const built: { match_id: number; team_id: number; player_id: number; source: string; confidence: number }[] = [];
+    for (const teamId of matchTeamIds) {
+      const recent = await recentXI(db, teamId, date, cfg.availability.lastXIs.value);
+      for (const [playerId, n] of recent.counts) built.push({ match_id: match.id, team_id: teamId, player_id: playerId, source: "predicted", confidence: n / Math.max(1, recent.matches) });
+    }
+    if (built.length > 0) {
+      const ins = await db.from("predicted_xi").insert(built);
+      if (ins.error) throw new Error(`predicted_xi: ${ins.error.message}`);
+      xi = built;
+    }
+  }
+  const { data: creditRows } = await db.from("credits").select("player_id, credits, source").eq("match_id", match.id);
   const credits = new Map((creditRows ?? []).map((c) => [c.player_id as number, Number(c.credits)]));
+  const creditSource = new Map((creditRows ?? []).map((c) => [c.player_id as number, c.source as string]));
 
   const confirmed: PoolPlayer[] = (xi ?? []).filter((x) => x.source === "confirmed").map((x) => ({ playerId: x.player_id, teamId: x.team_id, pPlay: 1 }));
   const haveConfirmed = matchTeamIds.every((t) => confirmed.filter((p) => p.teamId === t).length === 11);
@@ -74,6 +89,20 @@ export async function pickTeamForMatch(db: SupabaseClient, cricsheetId: string):
   const { data: overrides } = await db.from("manual_overrides").select("entity_id, value").eq("entity_type", "player").eq("field", "role");
   for (const o of overrides ?? []) if (["WK", "BAT", "AR", "BOWL"].includes(o.value)) roles.set(o.entity_id, o.value as Role);
 
+  // Dream11 does not publish credits for free, so any player without a typed credit gets a SEEDED one (ranked against the
+  // players in this match, the same way as the backtests) and is labelled seeded. Typed credits are never overwritten.
+  const poolIds0 = pool.map((p) => p.playerId);
+  const missing = poolIds0.filter((id) => !credits.has(id));
+  if (missing.length > 0) {
+    const priced = seedCreditsFor(rows, roles, missing, poolIds0);
+    const fresh = [...priced].filter(([, v]) => v.credit !== null).map(([player_id, v]) => ({ match_id: match.id, player_id, credits: v.credit as number, source: "seeded" }));
+    if (fresh.length > 0) {
+      const up = await db.from("credits").upsert(fresh, { onConflict: "match_id,player_id" });
+      if (up.error) throw new Error(`credits: ${up.error.message}`);
+      for (const f of fresh) { credits.set(f.player_id, f.credits); creditSource.set(f.player_id, "seeded"); }
+    }
+  }
+
   const { data: teams } = await db.from("teams").select("id, name").in("id", matchTeamIds);
   const teamNames = new Map((teams ?? []).map((t) => [t.id as number, t.name as string]));
   const poolIds = pool.map((p) => p.playerId);
@@ -85,6 +114,10 @@ export async function pickTeamForMatch(db: SupabaseClient, cricsheetId: string):
     return { stage, picked: 0, excluded: p.excluded.map((e) => ({ name: e.name, reason: e.reason })), message: `No legal team could be built. ${p.notes.join(" ")}`.trim() };
   }
 
+  // "manual" only when every picked player's credit was typed by Aryan; any seeded credit makes the whole team "seeded".
+  const allManual = p.selected.every((s) => creditSource.get(s.candidate.id) === "manual");
+  const creditsSource = allManual ? "manual" : "seeded";
+
   await db.from("recommendations").delete().eq("match_id", match.id).eq("rubric_version_id", active.id).eq("stage", stage);
   const rec = await db
     .from("recommendations")
@@ -93,7 +126,7 @@ export async function pickTeamForMatch(db: SupabaseClient, cricsheetId: string):
       captain_scores_json: p.captains.scores,
       engine_notes_json: {
         deathLog: p.deathLog, notes: p.notes, unavailableFactors: p.unavailableFactors, validation: p.validation,
-        rulesProfile: p.rulesProfile, rubricVersion: p.rubricVersion, totalCredits: p.selection.totalCredits, creditsSource: "manual",
+        rulesProfile: p.rulesProfile, rubricVersion: p.rubricVersion, totalCredits: p.selection.totalCredits, creditsSource,
         excluded: p.excluded,
       },
       captain_reason: null, vc_reason: null, summary_text: null, // written by explainMatch
@@ -104,7 +137,7 @@ export async function pickTeamForMatch(db: SupabaseClient, cricsheetId: string):
   const ins = await db.from("recommendation_players").insert(
     p.selected.map((s, idx) => ({
       recommendation_id: rec.data.id, player_id: s.candidate.id, slot: "starter", rank: idx + 1, expected_points: s.candidate.expected,
-      factors_json: { ...s.factors, credits: s.candidate.credits, creditsSource: "manual", rulesProfile: p.rulesProfile, rubric: p.rubricVersion },
+      factors_json: { ...s.factors, credits: s.candidate.credits, creditsSource: creditSource.get(s.candidate.id) ?? "seeded", rulesProfile: p.rulesProfile, rubric: p.rubricVersion },
       reason_text: null,
     })),
   );

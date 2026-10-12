@@ -118,3 +118,27 @@ export async function saveSetup(_prev: SetupState, formData: FormData): Promise<
   }
   redirect(`/matches/${cricsheetId}`);
 }
+
+// "Build the team now" for a listed match that has no team yet: the agent does everything itself (predicted XI, estimated
+// credits). Aryan types nothing.
+export async function buildTeamNow(formData: FormData): Promise<void> {
+  const token = (await cookies()).get(PIN_COOKIE)?.value;
+  if (!(await isValidToken(token, process.env.APP_PIN))) throw new Error("Not signed in");
+  const cricsheetId = String(formData.get("match") ?? "");
+  const setup = await loadSetup(cricsheetId);
+  if (!setup || setup.locked) redirect(`/matches/${cricsheetId}`);
+  const db = serverDb();
+  const r = await pickTeamForMatch(db, cricsheetId);
+  if (r.picked > 0) {
+    after(async () => {
+      try {
+        await explainMatch(db, cricsheetId, { useGemini: true, apiKey: process.env.GEMINI_API_KEY, onlyStages: [r.stage] });
+        revalidatePath(`/matches/${cricsheetId}`);
+      } catch {
+        /* keep the saved team */
+      }
+    });
+  }
+  revalidatePath("/");
+  redirect(`/matches/${cricsheetId}`);
+}

@@ -12,6 +12,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Skip the login page, the login endpoint, and static files.
-  matcher: ["/((?!login|api/login|_next/static|_next/image|favicon.ico).*)"],
+  // Skip the login page, the login endpoint, the scheduled job (it has its own secret) and static files.
+  matcher: ["/((?!login|api/login|api/cron|_next/static|_next/image|favicon.ico).*)"],
 };

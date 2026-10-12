@@ -62,10 +62,22 @@ export const ACTORS: Actor[] = [
     },
   },
   {
+    name: "Upcoming-match finder",
+    kind: "Plain TypeScript plus an official fixture feed (CricAPI)",
+    cells: {
+      Trigger: "Vercel's daily scheduler (08:00 IST), the Look for new matches button, or npm run sync:fixtures",
+      Input: "CricAPI's list of upcoming T20 matches; our own teams, grounds and match history",
+      Context: "Official feed only (Cricbuzz and Cricinfo forbid scraping); a match is listed only if both teams are men's internationals we have history for; the same match is never listed twice",
+      Processing: "Matches names to ours, saves the match with its exact start time, then builds the predicted XI, estimates the credits and runs the prediction engine for matches starting within 3 days",
+      AI: "Gemini writes the reasons afterwards (plain templates if there is no time or Gemini fails)",
+      Output: "An Upcoming match on the home list with its team ready; Aryan edits it or keeps it",
+    },
+  },
+  {
     name: "Prediction and selection engine",
     kind: "Plain TypeScript",
     cells: {
-      Trigger: "The backtest command (a toss-time run is the planned live trigger)",
+      Trigger: "The backtest command, or the match finder for upcoming matches",
       Input: "Only matches before the match date; predicted or confirmed XI; seeded credits; weather; venue history",
       Context: "As-of date prevents peeking; missing data stays unavailable; active rubric version",
       Processing: "Expected points (form, venue, team form, death-over rule, role correction); exact best legal team; captain and vice-captain; rules validator",

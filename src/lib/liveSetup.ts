@@ -11,7 +11,8 @@ export interface SetupPlayer {
   played: number; // of the side's last few internationals
   added: boolean; // typed in by Aryan, not in the recent XIs
   inXI: boolean;
-  credit: number | null;
+  credit: number | null; // typed by Aryan (real Dream11)
+  seededCredit: number | null; // the agent's own estimate, shown only as a hint
 }
 
 export interface SetupTeam {
@@ -39,9 +40,11 @@ export async function loadSetup(cricsheetId: string): Promise<SetupData | null> 
   const [{ data: teams }, { data: xi }, { data: credits }] = await Promise.all([
     db.from("teams").select("id, name").in("id", [m.team_a, m.team_b]),
     db.from("predicted_xi").select("player_id, team_id, source, confidence").eq("match_id", m.id),
-    db.from("credits").select("player_id, credits").eq("match_id", m.id),
+    db.from("credits").select("player_id, credits, source").eq("match_id", m.id),
   ]);
-  const creditOf = new Map((credits ?? []).map((c) => [c.player_id as number, Number(c.credits)]));
+  const typed = (credits ?? []).filter((c) => c.source === "manual");
+  const creditOf = new Map(typed.map((c) => [c.player_id as number, Number(c.credits)]));
+  const seededOf = new Map((credits ?? []).filter((c) => c.source === "seeded").map((c) => [c.player_id as number, Number(c.credits)]));
 
   const out: SetupTeam[] = [];
   for (const teamId of [m.team_a as number, m.team_b as number]) {
@@ -57,7 +60,7 @@ export async function loadSetup(cricsheetId: string): Promise<SetupData | null> 
       name: (teams ?? []).find((t) => t.id === teamId)?.name ?? "?",
       recentMatches: recent.matches,
       players: ids
-        .map((id) => ({ id, name: nameOf.get(id) ?? String(id), played: recent.counts.get(id) ?? 0, added: !recent.counts.has(id), inXI: confirmed.has(id), credit: creditOf.get(id) ?? null }))
+        .map((id) => ({ id, name: nameOf.get(id) ?? String(id), played: recent.counts.get(id) ?? 0, added: !recent.counts.has(id), inXI: confirmed.has(id), credit: creditOf.get(id) ?? null, seededCredit: seededOf.get(id) ?? null }))
         .sort((a, b) => b.played - a.played || a.name.localeCompare(b.name)),
     });
   }

@@ -4,13 +4,14 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { Icon } from "@/components/icons";
 import { CAPTAIN_INTRO, CAPTAIN_STEPS } from "@/lib/captainRules";
-import { ROLE_LABEL, formatDate, num, pctEffect } from "@/lib/format";
+import { ROLE_LABEL, formatDate, formatIst, num, pctEffect } from "@/lib/format";
 import { getMatch, type PlayerRow, type StageView } from "@/lib/queries";
 import { loadEditorData } from "@/lib/editor";
 import { reconcile } from "@/lib/editorLogic";
 import { teamScore } from "@/lib/teamScore";
 import { EntryForm } from "./EntryForm";
 import { TeamEditor } from "./TeamEditor";
+import { buildTeamNow } from "./setup/actions";
 
 function Bars({ predicted, actual, max }: { predicted: number; actual: number | null; max: number }) {
   const w = (v: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
@@ -88,15 +89,15 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
         <Link href="/" className="row" style={{ minHeight: 44, textDecoration: "none" }}><Icon name="back" />All matches</Link>
         <div className="page-head" style={{ marginBottom: 0 }}>
           <h1>{match.teams[0]} v {match.teams[1]}</h1>
-          <p className="muted">{formatDate(match.date)} · {match.venue}</p>
+          <p className="muted">{match.upcoming ? formatIst(match.startUtc) : formatDate(match.date)} · {match.venue}</p>
         </div>
         <div className="row">
           {match.hasActual ? <span className="chip good"><Icon name="check" size={14} />Played</span> : <span className="chip warn">Not played yet</span>}
-          {!match.cricsheetId.startsWith("live-") && <span className="chip">Credits are seeded, not Dream11&apos;s own</span>}
+          {(match.stages.final ?? match.stages.provisional)?.creditsSeeded !== false && <span className="chip">Credits are estimates, not Dream11&apos;s own</span>}
         </div>
         <div className="row">
           {match.cricsheetId.startsWith("live-") && !match.hasActual && (
-            <Link href={`/matches/${id}/setup`} className={`btn ${view ? "" : "primary"}`}>Squad, XI and credits</Link>
+            <Link href={`/matches/${id}/setup`} className={`btn ${view ? "" : "primary"}`}>Change XI or credits (optional)</Link>
           )}
           <a href="#edit" className="btn primary">Edit and confirm my team</a>
           <a href="#enter" className="btn">Enter the points my team scored</a>
@@ -108,9 +109,15 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
           <h2>No team for this match yet</h2>
           <p className="muted">
             {match.cricsheetId.startsWith("live-")
-              ? "This upcoming match is saved. Next steps: add the squad, the playing XI at the toss and the real Dream11 credits. Then the agent can pick a team."
+              ? "The agent builds a team for every upcoming match shortly before it starts. You can ask for it now: it picks the likely XIs and estimates the credits itself, so you type nothing."
               : "Run a backtest to create one."}
           </p>
+          {match.cricsheetId.startsWith("live-") && !match.hasActual && (
+            <form action={buildTeamNow} className="row">
+              <input type="hidden" name="match" value={match.cricsheetId} />
+              <button type="submit" className="btn primary">Build the team now</button>
+            </form>
+          )}
         </div>
       ) : (
         <>

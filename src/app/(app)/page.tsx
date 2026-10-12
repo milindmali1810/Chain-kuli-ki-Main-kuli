@@ -2,10 +2,12 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Icon } from "@/components/icons";
-import { formatDate, num } from "@/lib/format";
+import { formatDate, formatIst, num } from "@/lib/format";
+import { FindMatches } from "./FindMatches";
 import { listMatches, type MatchCard, type StageSummary } from "@/lib/queries";
 
 export const metadata = { title: "Matches" };
+export const maxDuration = 120; // "Look for new matches" can build teams, which reads the history and calls Gemini
 
 function Score({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -20,19 +22,20 @@ function MatchTile({ m }: { m: MatchCard }) {
   const stage: StageSummary | undefined = m.stages.final ?? m.stages.provisional;
   const which = m.stages.final ? "final team" : "pre-toss team";
   const played = stage?.actual !== null && stage?.actual !== undefined;
+  const upcoming = m.upcoming === true;
   const gap = played && stage ? Math.round(stage.predicted - (stage.actual as number)) : null;
   return (
     <Link href={`/matches/${m.cricsheetId}`} className="card match-card" aria-label={`${m.teams[0]} versus ${m.teams[1]}, ${formatDate(m.date)}`}>
       <div className="row-between">
         <h2>{m.teams[0]} v {m.teams[1]}</h2>
-        {m.upcoming ? <span className="chip">Upcoming</span> : played ? <span className="chip good"><Icon name="check" size={14} />Played</span> : <span className="chip warn">Predicted</span>}
+        {upcoming ? <span className="chip info">Upcoming</span> : played ? <span className="chip good"><Icon name="check" size={14} />Played</span> : <span className="chip warn">Predicted</span>}
       </div>
-      <p className="muted">{formatDate(m.date)} · {m.venue}</p>
-      {m.upcoming && <p className="muted">No team yet. The squad and credits are the next steps.</p>}
+      <p className="muted">{upcoming && m.startUtc ? formatIst(m.startUtc) : formatDate(m.date)} · {m.venue}</p>
+      {upcoming && !stage && <p className="muted">The agent has not built a team for this match yet. Open it to build one.</p>}
       {stage && (
         <div className="scoreline" style={{ marginTop: 4 }}>
           <Score label={`predicted (${which})`} value={num(stage.predicted)} />
-          <Score label={m.actualSource === "dream11_manual" ? "actual (Dream11)" : "actual (scorecard)"} value={played ? num(stage.actual) : "pending"} />
+          <Score label={upcoming ? "actual" : m.actualSource === "dream11_manual" ? "actual (Dream11)" : "actual (scorecard)"} value={played ? num(stage.actual) : upcoming ? "after the match" : "pending"} />
           {m.yourTeam && (
             <Score
               label={m.yourTeam.unedited ? "your team (agent's, unedited)" : "your team"}
@@ -45,6 +48,7 @@ function MatchTile({ m }: { m: MatchCard }) {
       <div className="row">
         {m.stages.final && <span className="chip info">Final</span>}
         {m.stages.provisional && <span className="chip">Provisional</span>}
+        {upcoming && stage && <span className="chip">Team ready · tap to edit or confirm</span>}
         {gap !== null && <span className="chip">{gap > 0 ? `Over-predicted by ${gap}` : gap < 0 ? `Under-predicted by ${-gap}` : "Exact"}</span>}
       </div>
     </Link>
@@ -86,14 +90,13 @@ export default function MatchesPage() {
       </div>
       <div className="banner info" role="note">
         <Icon name="info" />
-        <p>Matches marked Played are backtests: each prediction uses only data from before the match, so it is a fair test. Matches marked Upcoming are ones you added yourself.</p>
+        <p>Upcoming matches are found by the agent, which builds a team for each one before it starts. Matches marked Played are backtests: each prediction uses only data from before the match, so it is a fair test.</p>
       </div>
-      <div className="row">
-        <Link href="/matches/new" className="btn primary">Add an upcoming match</Link>
-      </div>
+      <FindMatches />
       <Suspense fallback={<ListSkeleton />}>
         <MatchList />
       </Suspense>
+      <p className="muted">A match missing from the list? <Link href="/matches/new">Add it by hand</Link>.</p>
     </div>
   );
 }

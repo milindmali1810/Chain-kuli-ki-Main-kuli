@@ -22,3 +22,11 @@ export function pctEffect(multiplier: number): string {
   const p = Math.round((multiplier - 1) * 1000) / 10;
   return `${p > 0 ? "+" : ""}${p}%`;
 }
+
+// A start time as Aryan sees it on Dream11: Indian time, e.g. "14 Oct, 7:30 pm IST".
+export function formatIst(iso: string): string {
+  const d = new Date(iso);
+  const day = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" }).format(d);
+  const time = new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }).format(d);
+  return `${day}, ${time.toLowerCase()} IST`;
+}
