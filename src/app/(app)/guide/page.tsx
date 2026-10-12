@@ -43,7 +43,7 @@ export default function GuidePage() {
       <Section title="How to use it" open>
         <ol className="stack" style={{ margin: 0, paddingLeft: 20 }}>
           <li><strong>Open the next match.</strong> The agent has already picked a team. Tap a player to see why he was picked, and read the captain and vice-captain reasons.</li>
-          <li><strong>Keep it or change it.</strong> Press <strong>Confirm my team</strong> if you are happy. To change something, open <strong>Change players, captain or vice-captain</strong>: the screen keeps checking the rules and tells you in plain English if a change breaks one. You can edit until the match starts, then it is locked. You then enter the team in Dream11 yourself.</li>
+          <li><strong>Keep it or change it.</strong> Press <strong>Confirm my team</strong> if you are happy. To change something, open <strong>Change players, captain or vice-captain</strong>: the screen keeps checking the rules and tells you in plain English if a change breaks one. The number in front of each player is his credits. When you remove a player, the list of replacements opens with players who cost the <strong>same credits</strong> first, so the team still adds up to 100. You can edit until the match starts, then it is locked. You then enter the team in Dream11 yourself.</li>
           <li><strong>After the match, enter your points.</strong> Open <strong>After the match: enter the points your team scored</strong>. Change only the players whose Dream11 points differ from the pre-filled numbers, type the team total Dream11 shows, and save. The agent then learns from them for the next match.</li>
         </ol>
       </Section>

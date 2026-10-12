@@ -121,3 +121,27 @@ describe("diffFromAgent: what Aryan changed", () => {
     expect(diffFromAgent(pool, agent, { ids: [...legal], captainId: 2, viceId: 4 }).viceCaptainChanged).toBe(true);
   });
 });
+
+import { orderReplacements } from "../src/lib/editorLogic";
+
+describe("orderReplacements", () => {
+  const pool = [
+    { name: "A", credits: 11 }, { name: "B", credits: 9 }, { name: "C", credits: 9 }, { name: "D", credits: 8.5 }, { name: "E", credits: 7.5 }, { name: "F", credits: 10 },
+  ];
+  it("puts players with the same credits as the removed one first, then those who fit, then the rest", () => {
+    // removed a 9-credit player: 9 credits are now free
+    const out = orderReplacements(pool, 9, 9).map((p) => p.name);
+    expect(out.slice(0, 2)).toEqual(["B", "C"]); // same credits, by name
+    expect(out.slice(2, 4)).toEqual(["D", "E"]); // fit in 9, dearest first
+    expect(out.slice(4)).toEqual(["A", "F"]); // too dear (11, 10), dearest first
+  });
+  it("with nothing removed it lists dearest first and does not claim anything fits beyond the credits left", () => {
+    const out = orderReplacements(pool, 0, null).map((p) => p.credits);
+    expect(out).toEqual([11, 10, 9, 9, 8.5, 7.5]);
+  });
+  it("does not change the list it was given", () => {
+    const copy = [...pool];
+    orderReplacements(pool, 9, 9);
+    expect(pool).toEqual(copy);
+  });
+});

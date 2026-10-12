@@ -52,7 +52,14 @@ function PlayerItem({ p, max, showBars }: { p: PlayerRow; max: number; showBars:
             {!p.played && <> · <span className="dnp">Did not play</span></>}
           </span>
         </div>
-        {showBars ? <Bars predicted={p.expected} actual={p.actual} max={max} /> : <span className="pts-sm num" title="Points the agent expects">{num(p.expected)}</span>}
+        {showBars ? (
+          <>
+            <span className="cr-badge num" title="Credits">{p.credits} cr</span>
+            <Bars predicted={p.expected} actual={p.actual} max={max} />
+          </>
+        ) : (
+          <span className="rightcol"><span className="cr-badge num" title="Credits">{p.credits} cr</span><span className="pts-sm num" title="Points the agent expects">{num(p.expected)} pts</span></span>
+        )}
       </summary>
       <div className="why">
         <p>{p.reason ?? "The reason is still being written. Refresh in about a minute."}</p>
@@ -150,6 +157,7 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
                   ? "Tap a player to see why. This is a prediction: the real playing XI is announced at the toss."
                   : "Tap a player to see why he was picked."}
               </p>
+              <p className="creditsline">Credits used <strong className="num">{view.totalCredits}</strong> of 100. The number in front of each player is his credits, so you can swap him for someone who costs the same.</p>
               <div className="players">
                 {(() => {
                   const max = Math.max(1, ...view.players.flatMap((p) => [p.expected, p.actual ?? 0]));

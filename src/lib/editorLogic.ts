@@ -124,3 +124,11 @@ export function diffFromAgent(
   const viceCaptainChanged = agent.viceId !== mine.viceId;
   return { removed, added, captainChanged, viceCaptainChanged, same: removed.length === 0 && added.length === 0 && !captainChanged && !viceCaptainChanged };
 }
+
+// Who to suggest when Aryan takes a player out: players who cost the SAME credits first (a like-for-like swap), then
+// anyone who still fits in the credits left, then the rest; dearest first within each group, then by name.
+// creditsLeft already includes the credits freed by the removal.
+export function orderReplacements<T extends { credits: number; name: string }>(available: T[], creditsLeft: number, removedCredits: number | null): T[] {
+  const rank = (p: T) => (removedCredits !== null && p.credits === removedCredits ? 0 : p.credits <= creditsLeft ? 1 : 2);
+  return [...available].sort((a, b) => rank(a) - rank(b) || b.credits - a.credits || a.name.localeCompare(b.name));
+}

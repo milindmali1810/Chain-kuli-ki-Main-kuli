@@ -4,7 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
 import { ROLES, RULES_PROFILES, DEFAULT_RULES_PROFILE } from "@/config/rules";
 import type { EditorData } from "@/lib/editor";
-import { checkSelection, diffFromAgent } from "@/lib/editorLogic";
+import { checkSelection, diffFromAgent, orderReplacements } from "@/lib/editorLogic";
 import { ROLE_LABEL } from "@/lib/format";
 import { confirmTeam, type ConfirmState } from "./team-actions";
 
@@ -19,6 +19,9 @@ export function TeamEditor({ data }: { data: EditorData }) {
   const [captainId, setCaptainId] = useState<number | null>(start.captainId);
   const [viceId, setViceId] = useState<number | null>(start.viceId);
   const [open, setOpen] = useState(false);
+  // The player Aryan just took out, so the list of replacements can start with players who cost the same credits.
+  const [lastRemoved, setLastRemoved] = useState<{ name: string; credits: number } | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [state, action, pending] = useActionState(confirmTeam, INITIAL);
   const banner = useRef<HTMLDivElement>(null);
 
@@ -29,13 +32,21 @@ export function TeamEditor({ data }: { data: EditorData }) {
   const editable = data.mode !== "locked";
   const check = useMemo(() => checkSelection(data.pool, ids, captainId, viceId), [data.pool, ids, captainId, viceId]);
   const selected = ids.map((id) => data.pool.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p);
-  const available = data.pool.filter((p) => !ids.includes(p.id));
+  const creditsLeft = Math.round((rules.creditCap.value - check.credits) * 10) / 10;
+  // Replacements: same credits as the player just removed first, then anyone who still fits, then the rest; dearest first.
+  const available = orderReplacements(data.pool.filter((p) => !ids.includes(p.id)), creditsLeft, lastRemoved?.credits ?? null);
   const agentIds = new Set(data.agent?.ids ?? []);
   const diff = data.agent ? diffFromAgent(data.pool, { ids: data.agent.ids, captainId: data.agent.captainId, viceId: data.agent.viceId }, { ids, captainId, viceId }) : null;
   const valid = check.result.violations.length === 0;
 
-  const add = (id: number) => setIds((cur) => (cur.includes(id) || cur.length >= 15 ? cur : [...cur, id]));
+  const add = (id: number) => {
+    setIds((cur) => (cur.includes(id) || cur.length >= 15 ? cur : [...cur, id]));
+    setLastRemoved(null);
+  };
   const remove = (id: number) => {
+    const gone = data.pool.find((p) => p.id === id);
+    if (gone) setLastRemoved({ name: gone.name, credits: gone.credits });
+    setAddOpen(true); // show the replacements straight away
     setIds((cur) => cur.filter((x) => x !== id));
     if (captainId === id) setCaptainId(null);
     if (viceId === id) setViceId(null);
@@ -44,6 +55,7 @@ export function TeamEditor({ data }: { data: EditorData }) {
     setIds(data.agent?.ids ?? []);
     setCaptainId(data.agent?.captainId ?? null);
     setViceId(data.agent?.viceId ?? null);
+    setLastRemoved(null);
   };
   const creditPct = Math.min(100, (check.credits / rules.creditCap.value) * 100);
 
@@ -69,7 +81,7 @@ export function TeamEditor({ data }: { data: EditorData }) {
 
       <div aria-live="polite">
         {valid ? (
-          <p className="status good">Valid team · <span className="num">{check.count}</span>/{rules.teamSize.value} players · <span className="num">{check.credits}</span>/{rules.creditCap.value} credits</p>
+          <p className="status good wrap">Valid team · <span className="num">{check.count}</span>/{rules.teamSize.value} players · <span className="num">{check.credits}</span>/{rules.creditCap.value} credits · <span className="num">{creditsLeft}</span> left</p>
         ) : (
           <div className="banner" role="status">
             <Icon name="alert" />
@@ -154,6 +166,7 @@ export function TeamEditor({ data }: { data: EditorData }) {
                         </span>
                         <span className="meta">{ROLE_LABEL[p.role]} · {p.team} · <span className="num">{p.credits}</span> cr{agentIds.has(p.id) ? "" : " · Your pick"}</span>
                       </div>
+                      <span className="cr-badge num" title="Credits">{p.credits} cr</span>
                       <button type="button" className="btn" onClick={() => remove(p.id)} aria-label={`Remove ${p.name}`}>Remove</button>
                     </li>
                   ))}
@@ -161,19 +174,28 @@ export function TeamEditor({ data }: { data: EditorData }) {
               )}
             </div>
 
-            <details className="how">
+            <details className="how" open={addOpen} onToggle={(e) => setAddOpen((e.currentTarget as HTMLDetailsElement).open)}>
               <summary>Add a player ({available.length} available)</summary>
               <div className="stack" style={{ paddingTop: 8 }}>
+                <p className="muted">
+                  <strong className="num">{creditsLeft}</strong> credits left.
+                  {lastRemoved ? <> You removed {lastRemoved.name} (<span className="num">{lastRemoved.credits}</span> cr), so players with the <strong>same credits</strong> are first.</> : " Dearest first."}
+                </p>
                 <ul className="players" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                  {available.map((p) => (
-                    <li key={p.id} className="pick-row">
-                      <div className="who">
-                        <span className="name">{p.name}</span>
-                        <span className="meta">{ROLE_LABEL[p.role]} · {p.team} · <span className="num">{p.credits}</span> cr</span>
-                      </div>
-                      <button type="button" className="btn" onClick={() => add(p.id)} aria-label={`Add ${p.name}`}>Add</button>
-                    </li>
-                  ))}
+                  {available.map((p) => {
+                    const same = lastRemoved !== null && p.credits === lastRemoved.credits;
+                    const tooDear = p.credits > creditsLeft && !same; // creditsLeft already includes the credits freed by the removal
+                    return (
+                      <li key={p.id} className={`pick-row${same ? " same" : ""}${tooDear ? " dear" : ""}`}>
+                        <div className="who">
+                          <span className="name">{p.name}</span>
+                          <span className="meta">{ROLE_LABEL[p.role]} · {p.team}{same ? " · same credits" : tooDear ? " · over the credit limit" : ""}</span>
+                        </div>
+                        <span className="cr-badge num" title="Credits">{p.credits} cr</span>
+                        <button type="button" className="btn" onClick={() => add(p.id)} aria-label={`Add ${p.name}`}>Add</button>
+                      </li>
+                    );
+                  })}
                 </ul>
                 {data.unavailable.length > 0 && (
                   <p className="muted">Not offered (missing data): {data.unavailable.map((u) => `${u.name} (${u.reason})`).join("; ")}.</p>

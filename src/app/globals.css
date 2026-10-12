@@ -393,3 +393,13 @@ details.quiet > summary { cursor: pointer; min-height: 44px; display: flex; alig
 }
 .badge + .badge { margin-left: -10px; }
 .title-row { display: flex; align-items: center; gap: var(--s3); }
+
+/* Credits in front of every player (13 Oct 2026): so a player can be swapped for someone who costs the same */
+.cr-badge { display: inline-flex; align-items: center; font-weight: 700; font-size: 0.8125rem; padding: 2px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--on-primary-soft); white-space: nowrap; flex: none; }
+.rightcol { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; align-self: center; }
+.creditsline { color: var(--text-muted); font-size: 0.9375rem; }
+.pick-row .cr-badge { margin-left: auto; }
+.pick-row.same { background: var(--primary-soft); }
+.pick-row.dear { opacity: 0.6; }
+.status.wrap { white-space: normal; align-items: flex-start; }
+.pick-row.same .cr-badge { background: var(--surface); }
