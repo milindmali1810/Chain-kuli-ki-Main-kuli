@@ -18,7 +18,8 @@
     "evaluate": "tsx --env-file=.env.local scripts/evaluate.ts",
     "rubric:set": "tsx --env-file=.env.local scripts/set-rubric.ts",
     "calibrate": "tsx --env-file=.env.local scripts/calibrate.ts",
-    "gen:map": "tsx scripts/gen-components-map.ts"
+    "gen:map": "tsx scripts/gen-components-map.ts",
+    "gen:map-svg": "tsx scripts/gen-map-svg.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
