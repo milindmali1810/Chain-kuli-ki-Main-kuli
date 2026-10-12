@@ -10,6 +10,8 @@ import { FindMatches } from "./FindMatches";
 export const metadata = { title: "Matches" };
 export const maxDuration = 120; // "Look for new matches" can build teams, which reads the history and calls Gemini
 
+const COMING_UP = 4; // how many upcoming matches the home page shows before "see all"
+
 const stateOf = (m: MatchCard, now: Date): MatchState =>
   matchState(
     { live: m.upcoming === true || m.cricsheetId.startsWith("live-"), startUtc: m.startUtc, hasTeam: Boolean(m.stages.final || m.stages.provisional), confirmed: Boolean(m.yourTeam && !m.yourTeam.unedited), hasActual: m.actualSource !== null },
@@ -19,11 +21,6 @@ const stateOf = (m: MatchCard, now: Date): MatchState =>
 // Where the main button on a match leads: straight to the part of the page the next step needs.
 const anchorFor = (s: MatchState) => (s.key === "review" ? "#team" : s.key === "confirmed" ? "#edit" : s.key === "started" ? "#enter" : "");
 
-function ToneChip({ s }: { s: MatchState }) {
-  const cls = s.tone === "good" ? "chip good" : s.tone === "warn" ? "chip warn" : s.tone === "info" ? "chip info" : "chip";
-  return <span className={cls}>{s.label}</span>;
-}
-
 function bestStage(m: MatchCard): StageSummary | undefined {
   return m.stages.final ?? m.stages.provisional;
 }
@@ -31,19 +28,14 @@ function bestStage(m: MatchCard): StageSummary | undefined {
 // The one match that needs Aryan next: a match waiting for his points, otherwise the soonest one not started.
 function NextMatch({ m, now }: { m: MatchCard; now: Date }) {
   const s = stateOf(m, now);
-  const stage = bestStage(m);
   return (
     <section className="card hero" aria-labelledby="next-h">
       <div className="row-between">
         <span className="eyebrow" id="next-h">{s.key === "started" ? "Needs your points" : "Next match"}</span>
-        {m.startUtc && <span className="chip"><Icon name="clock" size={14} />{relativeStart(m.startUtc, now)}</span>}
+        {m.startUtc && <span className="muted">{relativeStart(m.startUtc, now)}</span>}
       </div>
       <h2 className="hero-title">{m.teams[0]} v {m.teams[1]}</h2>
       <p className="muted">{m.startUtc ? formatIst(m.startUtc) : formatDate(m.date)} · {m.venue}</p>
-      <div className="row">
-        <ToneChip s={s} />
-        {stage && <span className="chip">Predicted team score <span className="num">{num(stage.predicted)}</span></span>}
-      </div>
       <div className="row">
         <Link href={`/matches/${m.cricsheetId}${anchorFor(s)}`} className="btn primary">{s.action}</Link>
       </div>
@@ -51,16 +43,18 @@ function NextMatch({ m, now }: { m: MatchCard; now: Date }) {
   );
 }
 
-function UpcomingRow({ m, now }: { m: MatchCard; now: Date }) {
+function UpcomingRow({ m, now, withDay }: { m: MatchCard; now: Date; withDay?: boolean }) {
   const s = stateOf(m, now);
+  const time = m.startUtc ? formatIst(m.startUtc).replace(/^\d+ \w+, /, "") : "";
+  const when = withDay && m.startUtc ? `${dayLabel(m.startUtc, now)}, ${time}` : time;
   return (
     <Link href={`/matches/${m.cricsheetId}`} className="match-row" aria-label={`${m.teams[0]} versus ${m.teams[1]}, ${m.startUtc ? formatIst(m.startUtc) : ""}. ${s.label}`}>
       <span className="who">
         <span className="teams">{m.teams[0]} v {m.teams[1]}</span>
-        <span className="meta">{m.startUtc ? formatIst(m.startUtc).replace(/^\d+ \w+, /, "") : ""} · {m.venue}</span>
+        <span className="meta">{when}</span>
       </span>
       <span className="side">
-        <ToneChip s={s} />
+        <span className={`status ${s.tone}`}>{s.short}</span>
         <Icon name="chevron" size={18} />
       </span>
     </Link>
@@ -70,12 +64,11 @@ function UpcomingRow({ m, now }: { m: MatchCard; now: Date }) {
 function PlayedRow({ m }: { m: MatchCard }) {
   const stage = bestStage(m);
   const played = stage?.actual !== null && stage?.actual !== undefined;
-  const gap = played && stage ? Math.round(stage.predicted - (stage.actual as number)) : null;
   return (
     <Link href={`/matches/${m.cricsheetId}`} className="match-row" aria-label={`${m.teams[0]} versus ${m.teams[1]}, ${formatDate(m.date)}`}>
       <span className="who">
         <span className="teams">{m.teams[0]} v {m.teams[1]}</span>
-        <span className="meta">{formatDate(m.date)} · {m.venue}</span>
+        <span className="meta">{formatDate(m.date)}</span>
       </span>
       <span className="side">
         {stage && played && (
@@ -85,50 +78,28 @@ function PlayedRow({ m }: { m: MatchCard }) {
             <span title="Actual">{num(stage.actual)}</span>
           </span>
         )}
-        {gap !== null && <span className="chip">{gap > 0 ? `Over by ${gap}` : gap < 0 ? `Under by ${-gap}` : "Exact"}</span>}
         <Icon name="chevron" size={18} />
       </span>
     </Link>
   );
 }
 
-// A plain-language check of the algorithm on matches already played: how far the predicted team score was from the real one.
+// How far the predicted team score was from the real one, in a sentence.
 function pastSummary(played: MatchCard[]) {
   const gaps = played.flatMap((m) => {
     const st = bestStage(m);
-    return st && st.actual !== null && st.actual !== undefined ? [{ gap: st.predicted - st.actual, actual: st.actual }] : [];
+    return st && st.actual !== null && st.actual !== undefined ? [st.predicted - st.actual] : [];
   });
   if (gaps.length === 0) return null;
-  const n = gaps.length;
-  const mae = gaps.reduce((a, g) => a + Math.abs(g.gap), 0) / n;
-  const pct = (gaps.reduce((a, g) => a + (g.actual > 0 ? Math.abs(g.gap) / g.actual : 0), 0) / n) * 100;
-  const higher = gaps.filter((g) => g.gap > 0).length;
-  return { n, mae: Math.round(mae), pct: Math.round(pct), higher };
+  return { n: gaps.length, mae: Math.round(gaps.reduce((a, g) => a + Math.abs(g), 0) / gaps.length) };
 }
 
-function PastMatches({ played }: { played: MatchCard[] }) {
-  const sum = pastSummary(played);
-  const recent = played.slice(0, 3);
-  if (recent.length === 0) return null;
+function BackHome({ label }: { label: string }) {
   return (
-    <section className="card stack" aria-labelledby="past-h">
-      <div className="row-between">
-        <h2 id="past-h">Matches already played: predicted vs what happened</h2>
-        <Link href="/?show=played" className="btn">See all {played.length}</Link>
-      </div>
-      <p className="muted">
-        A fair test: the agent predicted each of these using only what was known <strong>before</strong> the match, then we compared it with the real
-        result. Read each line as predicted team score, then actual. Team scores swing a lot from match to match, so a few matches prove little either way.
-      </p>
-      {sum && (
-        <p>
-          Over <span className="num">{sum.n}</span> past matches the predicted team score was off by about <span className="num">{sum.mae}</span> points
-          (<span className="num">{sum.pct}%</span>) on average, and was higher than the real score in <span className="num">{sum.higher}</span> of them. The{" "}
-          <Link href="/learning">Learning screen</Link> shows where it is wrong and how it adjusts itself after each match.
-        </p>
-      )}
-      <div className="rows">{recent.map((m) => <PlayedRow key={m.cricsheetId} m={m} />)}</div>
-    </section>
+    <div className="stack">
+      <Link href="/" className="row" style={{ minHeight: 44, textDecoration: "none" }}><Icon name="back" />Matches</Link>
+      <h1>{label}</h1>
+    </div>
   );
 }
 
@@ -137,66 +108,85 @@ async function MatchList({ searchParams }: { searchParams: Promise<{ show?: stri
   const { show } = await searchParams;
   const now = new Date();
   const all = await listMatches();
-  if (all.length === 0) {
+  const upcoming = all.filter((m) => m.upcoming);
+  const played = all.filter((m) => !m.upcoming);
+
+  // ---- All past matches ----
+  if (show === "played") {
+    const sum = pastSummary(played);
     return (
-      <div className="card empty">
-        <h2>No matches yet</h2>
-        <p className="muted">Press &ldquo;Look for new matches&rdquo; and the agent will find the next ones.</p>
+      <div className="stack-lg">
+        <BackHome label="Past matches" />
+        <p className="muted">
+          The agent predicted each of these using only what was known before the match. Each line shows the predicted team score, then the real one.
+          {sum && <> Over {sum.n} matches the prediction was off by about {sum.mae} points on average (team scores swing a lot). </>}
+          <Link href="/learning">See how it is doing</Link>.
+        </p>
+        <div className="rows">{played.map((m) => <PlayedRow key={m.cricsheetId} m={m} />)}</div>
       </div>
     );
   }
 
-  const upcoming = all.filter((m) => m.upcoming);
-  const played = all.filter((m) => !m.upcoming);
-  const tab: "upcoming" | "played" = show === "played" || (upcoming.length === 0 && show !== "upcoming") ? "played" : "upcoming";
+  // ---- All upcoming matches, grouped by day ----
+  if (show === "upcoming") {
+    const groups: { label: string; items: MatchCard[] }[] = [];
+    for (const m of upcoming) {
+      const label = m.startUtc ? dayLabel(m.startUtc, now) : formatDate(m.date);
+      const g = groups.find((x) => x.label === label);
+      if (g) g.items.push(m);
+      else groups.push({ label, items: [m] });
+    }
+    return (
+      <div className="stack-lg">
+        <BackHome label="Upcoming matches" />
+        {groups.map((g) => (
+          <section key={g.label} aria-label={g.label} className="stack">
+            <h2 className="group-h">{g.label}</h2>
+            <div className="rows">{g.items.map((m) => <UpcomingRow key={m.cricsheetId} m={m} now={now} />)}</div>
+          </section>
+        ))}
+      </div>
+    );
+  }
 
-  // The match that needs Aryan next.
+  // ---- Home: the next match, a few more, and quiet links ----
+  if (all.length === 0) {
+    return (
+      <div className="card empty">
+        <h2>No matches yet</h2>
+        <p className="muted">Press &ldquo;Look for new matches&rdquo; below and the agent will find the next ones.</p>
+      </div>
+    );
+  }
   const needsPoints = upcoming.find((m) => stateOf(m, now).key === "started" && (m.stages.final || m.stages.provisional));
   const soonest = upcoming.find((m) => stateOf(m, now).key !== "started");
   const next = needsPoints ?? soonest;
-
-  // Upcoming grouped by day: Today, Tomorrow, Sat 17 Oct ...
-  const groups: { label: string; items: MatchCard[] }[] = [];
-  for (const m of upcoming) {
-    const label = m.startUtc ? dayLabel(m.startUtc, now) : formatDate(m.date);
-    const g = groups.find((x) => x.label === label);
-    if (g) g.items.push(m);
-    else groups.push({ label, items: [m] });
-  }
+  const more = upcoming.filter((m) => m !== next).slice(0, COMING_UP);
 
   return (
     <div className="stack-lg">
-      {next && <NextMatch m={next} now={now} />}
-      {tab === "upcoming" && <PastMatches played={played} />}
+      {next ? <NextMatch m={next} now={now} /> : (
+        <div className="card empty"><h2>No upcoming matches</h2><p className="muted">Press &ldquo;Look for new matches&rdquo; below.</p></div>
+      )}
 
-      <div className="stack">
-        <div className="seg" role="group" aria-label="Which matches to show">
-          <Link href="/?show=upcoming" aria-current={tab === "upcoming" ? "true" : undefined} scroll={false}>Upcoming <span className="count num">{upcoming.length}</span></Link>
-          <Link href="/?show=played" aria-current={tab === "played" ? "true" : undefined} scroll={false}>Played <span className="count num">{played.length}</span></Link>
-        </div>
-        {tab === "played" && (
-          <p className="muted">Matches already played, used as a fair test: each prediction used only data from before the match. The numbers show predicted, then actual team score.</p>
-        )}
-      </div>
+      {more.length > 0 && (
+        <section className="stack" aria-labelledby="coming-h">
+          <h2 className="group-h" id="coming-h">Coming up</h2>
+          <div className="rows">{more.map((m) => <UpcomingRow key={m.cricsheetId} m={m} now={now} withDay />)}</div>
+          {upcoming.length > more.length + 1 && (
+            <Link href="/?show=upcoming" className="more-link">See all {upcoming.length} upcoming matches</Link>
+          )}
+        </section>
+      )}
 
-      {tab === "upcoming" ? (
-        upcoming.length === 0 ? (
-          <div className="card empty">
-            <h2>No upcoming matches yet</h2>
-            <p className="muted">Press &ldquo;Look for new matches&rdquo; below. The agent also checks every morning.</p>
-          </div>
-        ) : (
-          <div className="stack-lg">
-            {groups.map((g) => (
-              <section key={g.label} aria-label={g.label} className="stack">
-                <h2 className="group-h">{g.label}</h2>
-                <div className="rows">{g.items.map((m) => <UpcomingRow key={m.cricsheetId} m={m} now={now} />)}</div>
-              </section>
-            ))}
-          </div>
-        )
-      ) : (
-        <div className="rows">{played.map((m) => <PlayedRow key={m.cricsheetId} m={m} />)}</div>
+      {played.length > 0 && (
+        <Link href="/?show=played" className="card link-card">
+          <span className="who">
+            <strong>Past matches</strong>
+            <span className="muted">See how the agent did on {played.length} matches already played</span>
+          </span>
+          <Icon name="chevron" size={18} />
+        </Link>
       )}
     </div>
   );
@@ -205,8 +195,8 @@ async function MatchList({ searchParams }: { searchParams: Promise<{ show?: stri
 function ListSkeleton() {
   return (
     <div className="stack-lg" aria-busy="true" aria-label="Loading matches">
-      <div className="skeleton" style={{ minHeight: 190 }} />
-      {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ minHeight: 64 }} />)}
+      <div className="skeleton" style={{ minHeight: 170 }} />
+      {[0, 1, 2].map((i) => <div key={i} className="skeleton" style={{ minHeight: 64 }} />)}
     </div>
   );
 }
@@ -214,19 +204,30 @@ function ListSkeleton() {
 export default function MatchesPage(props: PageProps<"/">) {
   return (
     <div className="stack-lg">
-      <div className="page-head">
-        <h1>Matches</h1>
-        <p className="muted">The agent finds the matches and picks a team for each one. Open a match to review the team, change anything you like, and confirm.</p>
-      </div>
       <Suspense fallback={<ListSkeleton />}>
+        <HomeTitle searchParams={props.searchParams as Promise<{ show?: string }>} />
         <MatchList searchParams={props.searchParams as Promise<{ show?: string }>} />
       </Suspense>
-      <div className="card stack">
-        <h2>Missing a match?</h2>
-        <p className="muted">The agent looks every morning. You can ask it to look now.</p>
-        <FindMatches />
-        <p className="muted">Still not there? <Link href="/matches/new">Add it by hand</Link>.</p>
-      </div>
+      <details className="quiet">
+        <summary>Match missing from the list?</summary>
+        <div className="stack" style={{ paddingTop: 8 }}>
+          <p className="muted">The agent looks every morning. You can ask it to look now.</p>
+          <FindMatches />
+          <p className="muted">Still not there? <Link href="/matches/new">Add it by hand</Link>.</p>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+// The big title only on the home view; the other views have their own heading.
+async function HomeTitle({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
+  const { show } = await searchParams;
+  if (show === "played" || show === "upcoming") return null;
+  return (
+    <div className="page-head">
+      <h1>Matches</h1>
+      <p className="muted">Open a match to see the team the agent picked.</p>
     </div>
   );
 }

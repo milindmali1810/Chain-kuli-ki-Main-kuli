@@ -13,7 +13,8 @@ export interface MatchStateInput {
 
 export interface MatchState {
   key: StateKey;
-  label: string; // short status for a chip
+  label: string; // status for a chip on the match page and the next-match card
+  short: string; // one or two words for a row in a list
   action: string; // the one thing to do, for a button
   tone: "info" | "good" | "warn" | "plain";
   step: 1 | 2 | 3; // which of the three steps is current: 1 review, 2 confirm, 3 enter points
@@ -21,17 +22,17 @@ export interface MatchState {
 
 export function matchState(i: MatchStateInput, now: Date): MatchState {
   if (!i.live || i.hasActual) {
-    return { key: "played", label: "Played", action: "See how it went", tone: "good", step: 3 };
+    return { key: "played", label: "Played", short: "Played", action: "See how it went", tone: "good", step: 3 };
   }
   const started = i.startUtc ? new Date(i.startUtc).getTime() <= now.getTime() : false;
   if (started) {
     return i.hasTeam
-      ? { key: "started", label: "Started: enter your points after the match", action: "Enter your points", tone: "warn", step: 3 }
-      : { key: "started", label: "Started", action: "Open", tone: "plain", step: 3 };
+      ? { key: "started", label: "Started: enter your points after the match", short: "Started", action: "Enter your points", tone: "warn", step: 3 }
+      : { key: "started", label: "Started", short: "Started", action: "Open", tone: "plain", step: 3 };
   }
-  if (!i.hasTeam) return { key: "no-team", label: "Team builds about 3 days before", action: "Build the team now", tone: "plain", step: 1 };
-  if (i.confirmed) return { key: "confirmed", label: "You confirmed your team", action: "Open my team", tone: "good", step: 2 };
-  return { key: "review", label: "Team ready: review it", action: "Review the team", tone: "info", step: 1 };
+  if (!i.hasTeam) return { key: "no-team", label: "Team builds about 3 days before", short: "Not built yet", action: "Build the team now", tone: "plain", step: 1 };
+  if (i.confirmed) return { key: "confirmed", label: "You confirmed your team", short: "Confirmed", action: "Open my team", tone: "good", step: 2 };
+  return { key: "review", label: "Team ready: review it", short: "Team ready", action: "Review the team", tone: "info", step: 1 };
 }
 
 // "in 5 h", "in 40 min", "in 3 days", or "started".

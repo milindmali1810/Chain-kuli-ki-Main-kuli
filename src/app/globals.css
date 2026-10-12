@@ -333,3 +333,36 @@ details.more > .body { padding: 0 var(--s4) var(--s4); display: flex; flex-direc
 :root { --bg-solid: #ffffff; }
 @media (prefers-color-scheme: dark) { :root { --bg-solid: #1a2638; } }
 .skip { background: var(--bg-solid); }
+
+/* ---------- Calmer pass (13 Oct 2026): less on screen, quieter chrome ---------- */
+.card { box-shadow: none; }
+.btn.primary { box-shadow: none; }
+body::after { opacity: 0.1; }
+
+/* A status is a dot and a word, not a coloured pill */
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex: none; }
+.status.info { color: var(--on-primary-soft); }
+.status.info::before { background: var(--primary); }
+.status.good { color: var(--good); }
+.status.good::before { background: var(--good); }
+.status.warn { color: var(--warn); }
+.status.warn::before { background: var(--accent); }
+
+.more-link { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; text-decoration: none; }
+.more-link:hover { text-decoration: underline; }
+.link-card { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); text-decoration: none; color: inherit; min-height: 64px; }
+.link-card .who { display: flex; flex-direction: column; gap: 2px; }
+.link-card:hover { border-color: var(--primary); }
+details.quiet > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--text-muted); font-size: 0.9375rem; }
+
+/* Rows stay on one line on phones now that statuses are short */
+@media (max-width: 520px) {
+  .match-row { flex-direction: row; align-items: center; }
+  .match-row .side { max-width: none; flex-wrap: nowrap; }
+  .match-row .side svg { display: block; margin-left: 0; }
+}
+
+/* Match page: calm player lines, big result numbers */
+.pts-sm { align-self: center; color: var(--text-muted); font-size: 0.9375rem; }
+.big-n { font-size: 1.75rem; font-weight: 600; }
