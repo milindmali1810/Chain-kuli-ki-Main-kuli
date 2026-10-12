@@ -14,6 +14,7 @@ import { loadActiveRubric, loadHistoryRows, monthsBefore, serverDb } from "../sr
 import { seedCreditsFor } from "../src/lib/seedCredits";
 import { inferRolesFromRows } from "../src/lib/inferRole";
 import { teamScore } from "../src/lib/teamScore";
+import { fieldStats } from "../src/lib/fieldStats";
 import { predict, type PoolPlayer, type Prediction } from "../src/lib/predict";
 import { scorePlayerMatch, type PlayerMatchStats } from "../src/lib/scorePlayerMatch";
 import { selectTeam, type Candidate } from "../src/lib/selectTeam";
@@ -187,6 +188,11 @@ async function main() {
           deathLog: p.deathLog, notes: p.notes, unavailableFactors: p.unavailableFactors, validation: p.validation,
           rulesProfile: p.rulesProfile, rubricVersion: p.rubricVersion, totalCredits: p.selection.totalCredits, creditsSource: "seeded",
           excluded: p.excluded,
+          // Against what: the average player of the match and a random legal team (see src/lib/fieldStats.ts).
+          fieldStats: fieldStats({
+            pickedIds: p.selected.map((s) => s.candidate.id), pool: p.pool.map((q) => q.candidate), actualOf,
+            fieldPoints: [...actual.values()].filter((v): v is number => v !== null), rules,
+          }),
         },
         captain_reason: null, vc_reason: null, summary_text: null, // written by explain.ts
       })

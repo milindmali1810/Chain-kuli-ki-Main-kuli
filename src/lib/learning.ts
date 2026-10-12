@@ -4,6 +4,8 @@ import type { Role } from "@/config/rules";
 import { ROLES } from "@/config/rules";
 import { AUTO_LEARNING, DEFAULT_LEARNING, computeMetrics, proposeCalibration, type CompareRow, type LearningSettings, type Metrics, type Proposal } from "./calibration";
 import { loadActiveRubric, serverDb } from "./db";
+import { summariseEdge } from "./edge";
+import type { FieldStats } from "./fieldStats";
 
 // Server-side learning loop: compare predicted with actual, propose corrections, and (when a person accepts)
 // create a new rubric version. SERVER ONLY.
@@ -73,6 +75,40 @@ export interface VersionView {
   metrics: Metrics;
   // The same measurement restricted to the matches the first version also predicted: a like-for-like comparison.
   metricsSameMatches: Metrics;
+  // How the agent's team did against a random legal team and against the average player (backtests only; null if none stored).
+  edge: EdgeView | null;
+}
+
+export interface EdgeView {
+  matches: number;
+  pickedAvg: number;
+  randomAvg: number;
+  fieldAvg: number;
+  vsRandom: number; // points per player, positive = the agent did better
+  vsRandomSe: number;
+  winsVsRandom: number;
+  vsField: number;
+}
+
+// The stored comparison (written by the backtest) summed up per rubric version, using FINAL teams.
+async function loadEdges(db: SupabaseClient): Promise<Map<number, EdgeView>> {
+  const { data: recs } = await db.from("recommendations").select("rubric_version_id, engine_notes_json").eq("stage", "final");
+  const byVersion = new Map<number, FieldStats[]>();
+  for (const r of recs ?? []) {
+    const fs = (r.engine_notes_json as Row | null)?.fieldStats as FieldStats | undefined;
+    if (!fs || fs.randomLegalAvg === null) continue;
+    byVersion.set(r.rubric_version_id, [...(byVersion.get(r.rubric_version_id) ?? []), fs]);
+  }
+  const out = new Map<number, EdgeView>();
+  for (const [id, list] of byVersion) {
+    const vsRandom = summariseEdge(list.map((f) => ({ picked: [f.pickedAvg], field: [f.randomLegalAvg as number], pairs: [] })));
+    const vsField = summariseEdge(list.map((f) => ({ picked: [f.pickedAvg], field: [f.fieldAvg], pairs: [] })));
+    out.set(id, {
+      matches: vsRandom.matches, pickedAvg: vsRandom.pickedAvg, randomAvg: vsRandom.fieldAvg, fieldAvg: vsField.fieldAvg,
+      vsRandom: vsRandom.edge, vsRandomSe: vsRandom.se, winsVsRandom: vsRandom.wins, vsField: vsField.edge,
+    });
+  }
+  return out;
 }
 
 export interface PendingView {
@@ -98,11 +134,12 @@ export interface LearningView {
 
 export async function getLearning(): Promise<LearningView> {
   const db = serverDb();
-  const [{ data: versions }, { data: pending }, perVersion, active] = await Promise.all([
+  const [{ data: versions }, { data: pending }, perVersion, active, edges] = await Promise.all([
     db.from("rubric_versions").select("id, status, reason, created_at, config_json, parent_id").order("id"),
     db.from("pending_adjustments").select("*").eq("status", "pending").order("id"),
     loadCompareRows(db),
     loadActiveRubric(db),
+    loadEdges(db),
   ]);
   const rowsOf = (id: number) => perVersion.find((v) => v.versionId === id);
   const baseline = [...perVersion].sort((a, b) => a.versionId - b.versionId)[0];
@@ -124,6 +161,7 @@ export async function getLearning(): Promise<LearningView> {
         calibration: Object.fromEntries(ROLES.map((role) => [role, cal[role]?.value ?? 1])) as Record<Role, number>,
         metrics: computeMetrics(r?.rows ?? [], r?.regrets ?? []),
         metricsSameMatches: computeMetrics((r?.rows ?? []).filter((row) => baselineMatches.has(row.matchId)), []),
+        edge: edges.get(v.id) ?? null,
       };
     }),
     activeVersionId: active?.id ?? null,

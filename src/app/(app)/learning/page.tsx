@@ -47,6 +47,46 @@ function GroupTable({ title, labelOf, groups }: { title: string; labelOf: (k: st
   );
 }
 
+function EdgeCard({ v }: { v: LearningView }) {
+  const rows = v.versions.filter((x) => x.edge);
+  if (rows.length === 0) return null;
+  const sign = (n: number) => (n > 0 ? "+" : "") + num(n, 1);
+  return (
+    <section className="card stack" aria-labelledby="edge-h">
+      <h2 id="edge-h">Does the agent&apos;s team beat simple alternatives?</h2>
+      <p className="muted">
+        For each past match we compare the real points of the 11 players the agent picked with two simple yardsticks, in points per player. Any legal team has to
+        fit 100 credits and the role limits, which pulls it <strong>below</strong> the average player, so the fair yardstick is a <strong>random legal team</strong>.
+        A gap smaller than about twice the margin (±) could just be luck.
+      </p>
+      <div className="tablewrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Version</th><th scope="col">Matches</th><th scope="col">Agent&apos;s picks</th><th scope="col">Random legal team</th><th scope="col">Average player</th><th scope="col">Better than random by</th><th scope="col">Won in</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((ver) => {
+              const e = ver.edge!;
+              const clear = Math.abs(e.vsRandom) > 2 * e.vsRandomSe;
+              return (
+                <tr key={ver.id}>
+                  <th scope="row">#{ver.id}</th>
+                  <td className="num">{e.matches}</td>
+                  <td className="num">{num(e.pickedAvg, 1)}</td>
+                  <td className="num">{num(e.randomAvg, 1)}</td>
+                  <td className="num">{num(e.fieldAvg, 1)}</td>
+                  <td><span className={`chip ${clear ? (e.vsRandom > 0 ? "good" : "bad") : ""}`}><span className="num">{sign(e.vsRandom)}</span>&nbsp;(±{num(e.vsRandomSe, 1)})</span></td>
+                  <td className="num">{e.winsVsRandom} of {e.matches}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function Proposals({ v }: { v: LearningView }) {
   const enough = v.allMetrics.n >= v.settings.minRows;
   return (
@@ -154,6 +194,8 @@ async function LearningView() {
           {m.captainRegret.mean !== null && <> The captain pick scored {num(m.captainRegret.mean, 0)} points less, on average, than the best player in the same team.</>}
         </p>
       </div>
+
+      <EdgeCard v={v} />
 
       <Proposals v={v} />
 
