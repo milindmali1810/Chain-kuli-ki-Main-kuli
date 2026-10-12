@@ -15,7 +15,9 @@ export function serverDb(): SupabaseClient {
 // "Strictly before" is what keeps a backtest honest: the match being predicted can never be in its own history.
 export async function loadHistoryRows(db: SupabaseClient, fromDate: string, beforeDate: string): Promise<HistoryRow[]> {
   const out: HistoryRow[] = [];
-  for (let start = 0; ; start += 1000) {
+  const PAGE = 1000;
+  const WAVE = 8; // pages fetched at the same time; the page order (and so the row order) is unchanged
+  const fetchPage = async (start: number) => {
     const { data, error } = await db
       .from("player_match_lines")
       .select("player_id, match_id, team_id, stats_json, phases_json, matches!inner(start_time, venue_id, leagues!inner(tier))")
@@ -23,8 +25,13 @@ export async function loadHistoryRows(db: SupabaseClient, fromDate: string, befo
       .lt("matches.start_time", `${beforeDate}T00:00:00Z`)
       .order("match_id")
       .order("player_id")
-      .range(start, start + 999);
+      .range(start, start + PAGE - 1);
     if (error) throw new Error(`history: ${error.message}`);
+    return data;
+  };
+  for (let wave = 0; ; wave++) {
+    const pages = await Promise.all(Array.from({ length: WAVE }, (_, k) => fetchPage((wave * WAVE + k) * PAGE)));
+    for (const data of pages) {
     for (const r of data as unknown as {
       player_id: number;
       match_id: number;
@@ -44,7 +51,8 @@ export async function loadHistoryRows(db: SupabaseClient, fromDate: string, befo
         phases: r.phases_json ?? undefined,
       });
     }
-    if (data.length < 1000) return out;
+    if (data.length < PAGE) return out; // a short page is the last one; any later page in this wave is empty
+    }
   }
 }
 

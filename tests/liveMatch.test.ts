@@ -1,5 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { checkNewMatch, istToUtcIso } from "../src/lib/liveMatch";
+import { checkNewMatch, checkXI, istToUtcIso, parseCredit } from "../src/lib/liveMatch";
+
+describe("parseCredit", () => {
+  it("accepts half steps and blanks", () => {
+    expect(parseCredit("9.5").value).toBe(9.5);
+    expect(parseCredit(" 10 ").value).toBe(10);
+    expect(parseCredit("")).toEqual({ value: null });
+  });
+  it("rejects text, odd steps and silly values", () => {
+    expect(parseCredit("abc").error).toBeDefined();
+    expect(parseCredit("9.3").error).toMatch(/0\.5/);
+    expect(parseCredit("40").error).toBeDefined();
+  });
+});
+
+describe("checkXI", () => {
+  it("allows none ticked (before the toss)", () => {
+    expect(checkXI([{ team: "A", ticked: 0 }, { team: "B", ticked: 0 }])).toEqual({ confirmed: false });
+  });
+  it("allows 11 and 11", () => {
+    expect(checkXI([{ team: "A", ticked: 11 }, { team: "B", ticked: 11 }]).confirmed).toBe(true);
+  });
+  it("stops on 11 and 0, or 10", () => {
+    expect(checkXI([{ team: "A", ticked: 11 }, { team: "B", ticked: 0 }]).error).toMatch(/B: you ticked 0/);
+    expect(checkXI([{ team: "A", ticked: 10 }, { team: "B", ticked: 11 }]).error).toMatch(/A: you ticked 10/);
+  });
+});
 
 describe("istToUtcIso", () => {
   it("converts Indian time to UTC", () => {

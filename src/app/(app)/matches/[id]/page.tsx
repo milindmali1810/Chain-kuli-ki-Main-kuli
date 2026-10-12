@@ -50,7 +50,7 @@ function PlayerItem({ p, max }: { p: PlayerRow; max: number }) {
         <Bars predicted={p.expected} actual={p.actual} max={max} />
       </summary>
       <div className="why">
-        <p>{p.reason ?? "No explanation stored yet."}</p>
+        <p>{p.reason ?? "The reason is still being written. Refresh in about a minute."}</p>
         <p className="muted">
           Recent scores, oldest to newest: <span className="num">{p.lastPoints.length ? p.lastPoints.map((x) => Math.round(x)).join(", ") : "unavailable"}</span>
         </p>
@@ -95,6 +95,9 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
           {!match.cricsheetId.startsWith("live-") && <span className="chip">Credits are seeded, not Dream11&apos;s own</span>}
         </div>
         <div className="row">
+          {match.cricsheetId.startsWith("live-") && !match.hasActual && (
+            <Link href={`/matches/${id}/setup`} className={`btn ${view ? "" : "primary"}`}>Squad, XI and credits</Link>
+          )}
           <a href="#edit" className="btn primary">Edit and confirm my team</a>
           <a href="#enter" className="btn">Enter the points my team scored</a>
         </div>
@@ -167,7 +170,7 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
                     <>
                       <div className="stack">
                         <p><span className="badge-c" style={{ marginLeft: 0, marginRight: 8 }}>C</span><strong>{cap?.name ?? "No captain"}</strong> <span className="muted">(2x points)</span></p>
-                        <p>{view.captainReason ?? "No explanation stored yet."}</p>
+                        <p>{view.captainReason ?? "The reason is still being written. Refresh in about a minute."}</p>
                       </div>
                       <div className="stack">
                         <p><span className="badge-c" style={{ marginLeft: 0, marginRight: 8 }}>VC</span><strong>{vc?.name ?? "No vice-captain"}</strong> <span className="muted">(1.5x points)</span></p>

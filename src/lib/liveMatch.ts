@@ -14,6 +14,29 @@ export function istToUtcIso(local: string): string | null {
   return date.toISOString();
 }
 
+// ---------- Squad, playing XI and credits ----------
+
+// Dream11 credits are typed from the app, in steps of 0.5. Blank means "not entered".
+export function parseCredit(text: string): { value: number | null; error?: string } {
+  const t = text.trim();
+  if (t === "") return { value: null };
+  const v = Number(t);
+  if (!Number.isFinite(v)) return { value: null, error: "Enter a number, like 9 or 9.5" };
+  if (v < 3 || v > 15) return { value: null, error: "Credits are usually between 4 and 12. Check the Dream11 app." };
+  if (Math.round(v * 2) !== v * 2) return { value: null, error: "Credits go up in steps of 0.5" };
+  return { value: v };
+}
+
+// The playing XI is announced at the toss: either tick 11 players for BOTH teams, or tick none (then the agent uses the
+// predicted XIs). Anything else is a mistake worth stopping on.
+export function checkXI(ticksPerTeam: { team: string; ticked: number }[]): { confirmed: boolean; error?: string } {
+  const counts = ticksPerTeam.map((t) => t.ticked);
+  if (counts.every((c) => c === 0)) return { confirmed: false };
+  const bad = ticksPerTeam.find((t) => t.ticked !== 11);
+  if (bad) return { confirmed: false, error: `${bad.team}: you ticked ${bad.ticked} players. Tick exactly 11 for each team, or leave all unticked until the toss.` };
+  return { confirmed: true };
+}
+
 export interface NewMatchInput {
   teamA: string;
   teamB: string;

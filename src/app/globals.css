@@ -239,3 +239,8 @@ tr:last-child td { border-bottom: 0; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Setup screen for an upcoming match: one row per player, tick = playing, box = Dream11 credits */
+.setup-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); border-bottom: 1px solid var(--border); padding-bottom: var(--s2); }
+.setup-xi { display: flex; align-items: center; gap: var(--s3); min-height: 44px; flex: 1; min-width: 0; cursor: pointer; }
+.setup-xi input { width: 22px; height: 22px; flex: none; }
