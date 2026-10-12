@@ -1,10 +1,10 @@
-// The upcoming-match finder. Asks CricAPI for upcoming T20 matches, lists the ones we can predict (men's internationals
+// The upcoming-match finder. Asks CricAPI, series by series, for upcoming T20 matches, lists the ones we can predict (men's internationals
 // we have history for), and has the agent build a team for each one that starts soon, so Aryan finds the match already
 // listed with its team ready. SERVER ONLY (uses the secret key).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { explainMatch } from "./explainMatch";
-import { matchTeam, matchVenue, parseCricApiMatches, type Fixture } from "./fixtures";
+import { matchTeam, matchVenue, parseSeriesInfo, pickSeries, type Fixture, type SeriesRow } from "./fixtures";
 import { pickTeamForMatch } from "./livePipeline";
 
 const API = "https://api.cricapi.com/v1";
@@ -48,19 +48,35 @@ export async function syncFixtures(db: SupabaseClient, opts: SyncOptions = {}): 
   const get = opts.fetchImpl ?? getJson;
   const fixtures = new Map<string, Fixture>();
   if (!opts.apiKey) return { ...report, problem: "No fixture feed key is set (CRICAPI_KEY), so the agent cannot look for new matches." };
-  for (const path of ["currentMatches", "matches"]) {
-    let body: unknown;
+  const key = encodeURIComponent(opts.apiKey);
+
+  // Upcoming matches are only reachable through their series (the free "current matches" and "all matches" lists hold
+  // live and finished ones). Read the newest three pages of the series list, open the few that matter, and read their matches.
+  // About 3 + up to 8 calls a run, against a free quota of 100 a day.
+  const seriesRows: SeriesRow[] = [];
+  for (const offset of [0, 25, 50]) {
+    type SeriesBody = { status?: string; reason?: string; data?: SeriesRow[] } | null;
+    let body: SeriesBody;
     try {
-      body = await get(`${API}/${path}?apikey=${encodeURIComponent(opts.apiKey)}&offset=0`);
+      body = (await get(`${API}/series?apikey=${key}&offset=${offset}`)) as SeriesBody;
     } catch {
-      report.problem = "The fixture feed could not be reached. Try again later.";
-      continue;
+      return { ...report, problem: "The fixture feed could not be reached. Try again later." };
     }
-    const parsed = parseCricApiMatches(body, now);
-    if (parsed.problem && fixtures.size === 0) report.problem = parsed.problem;
-    for (const f of parsed.fixtures) fixtures.set(f.externalId, f);
+    if (!body || body.status !== "success" || !Array.isArray(body.data)) {
+      return { ...report, problem: body?.reason ? `CricAPI said: ${body.reason}` : "CricAPI sent an answer we could not read." };
+    }
+    seriesRows.push(...body.data);
   }
-  if (fixtures.size > 0) delete report.problem; // one list worked, so carry on
+  for (const id of pickSeries(seriesRows, now)) {
+    try {
+      const parsed = parseSeriesInfo(await get(`${API}/series_info?apikey=${key}&id=${encodeURIComponent(id)}`), now);
+      if (parsed.problem) report.problem = parsed.problem; // e.g. the daily quota ran out part-way: keep what we have
+      for (const f of parsed.fixtures) fixtures.set(f.externalId, f);
+    } catch {
+      report.problem = "Some series could not be read. Try again later.";
+    }
+  }
+  if (fixtures.size > 0) delete report.problem;
   report.found = fixtures.size;
 
   // 2. List the ones we can predict.
@@ -69,8 +85,16 @@ export async function syncFixtures(db: SupabaseClient, opts: SyncOptions = {}): 
   const [{ data: teams }, { data: venues }, { data: existing }] = await Promise.all([
     db.from("teams").select("id, name").eq("league_id", league.id),
     db.from("venues").select("id, name, city"),
-    db.from("matches").select("id, external_id, start_time, team_a, team_b").eq("data_origin", "manual"),
+    db.from("matches").select("id, external_id, start_time, team_a, team_b, venue_id").eq("data_origin", "manual"),
   ]);
+  // Matches on record per ground, so that when the history holds one ground twice the busier row is used.
+  const perVenue = new Map<number, number>();
+  for (let from = 0; ; from += 1000) {
+    const { data: vm } = await db.from("matches").select("venue_id").not("venue_id", "is", null).order("id").range(from, from + 999);
+    for (const r of vm ?? []) perVenue.set(r.venue_id as number, (perVenue.get(r.venue_id as number) ?? 0) + 1);
+    if ((vm ?? []).length < 1000) break;
+  }
+  const venueRows = (venues ?? []).map((v) => ({ ...v, matches: perVenue.get(v.id) ?? 0 }));
   const byExternal = new Map((existing ?? []).filter((m) => m.external_id).map((m) => [m.external_id as string, m]));
 
   for (const f of fixtures.values()) {
@@ -82,8 +106,15 @@ export async function syncFixtures(db: SupabaseClient, opts: SyncOptions = {}): 
     }
     const known = byExternal.get(f.externalId);
     if (known) {
-      if (new Date(known.start_time).toISOString() !== f.startUtc) {
-        await db.from("matches").update({ start_time: f.startUtc }).eq("id", known.id);
+      // A changed start time, or a ground we could not place before and now can.
+      const change: Record<string, unknown> = {};
+      if (new Date(known.start_time).toISOString() !== f.startUtc) change.start_time = f.startUtc;
+      if (known.venue_id === null) {
+        const v = matchVenue(f.venueText, venueRows);
+        if (v !== null) change.venue_id = v;
+      }
+      if (Object.keys(change).length > 0) {
+        await db.from("matches").update(change).eq("id", known.id);
         report.updated += 1;
       }
       continue;
@@ -97,7 +128,7 @@ export async function syncFixtures(db: SupabaseClient, opts: SyncOptions = {}): 
     }
     const ins = await db
       .from("matches")
-      .insert({ league_id: league.id, venue_id: matchVenue(f.venueText, venues ?? []), team_a: a, team_b: b, start_time: f.startUtc, status: "scheduled", data_origin: "manual", external_id: f.externalId })
+      .insert({ league_id: league.id, venue_id: matchVenue(f.venueText, venueRows), team_a: a, team_b: b, start_time: f.startUtc, status: "scheduled", data_origin: "manual", external_id: f.externalId })
       .select("id")
       .single();
     if (ins.error || !ins.data) {

@@ -109,7 +109,7 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
           <h2>No team for this match yet</h2>
           <p className="muted">
             {match.cricsheetId.startsWith("live-")
-              ? "The agent builds a team for every upcoming match shortly before it starts. You can ask for it now: it picks the likely XIs and estimates the credits itself, so you type nothing."
+              ? "The agent builds a team for every upcoming match about 3 days before it starts. You can ask for it now: it picks the likely XIs and estimates the credits itself, so you type nothing."
               : "Run a backtest to create one."}
           </p>
           {match.cricsheetId.startsWith("live-") && !match.hasActual && (

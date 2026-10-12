@@ -31,7 +31,7 @@ function MatchTile({ m }: { m: MatchCard }) {
         {upcoming ? <span className="chip info">Upcoming</span> : played ? <span className="chip good"><Icon name="check" size={14} />Played</span> : <span className="chip warn">Predicted</span>}
       </div>
       <p className="muted">{upcoming && m.startUtc ? formatIst(m.startUtc) : formatDate(m.date)} · {m.venue}</p>
-      {upcoming && !stage && <p className="muted">The agent has not built a team for this match yet. Open it to build one.</p>}
+      {upcoming && !stage && <p className="muted">The agent builds the team about 3 days before the match. Open it to build it now.</p>}
       {stage && (
         <div className="scoreline" style={{ marginTop: 4 }}>
           <Score label={`predicted (${which})`} value={num(stage.predicted)} />
