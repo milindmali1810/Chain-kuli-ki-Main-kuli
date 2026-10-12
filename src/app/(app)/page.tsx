@@ -92,6 +92,46 @@ function PlayedRow({ m }: { m: MatchCard }) {
   );
 }
 
+// A plain-language check of the algorithm on matches already played: how far the predicted team score was from the real one.
+function pastSummary(played: MatchCard[]) {
+  const gaps = played.flatMap((m) => {
+    const st = bestStage(m);
+    return st && st.actual !== null && st.actual !== undefined ? [{ gap: st.predicted - st.actual, actual: st.actual }] : [];
+  });
+  if (gaps.length === 0) return null;
+  const n = gaps.length;
+  const mae = gaps.reduce((a, g) => a + Math.abs(g.gap), 0) / n;
+  const pct = (gaps.reduce((a, g) => a + (g.actual > 0 ? Math.abs(g.gap) / g.actual : 0), 0) / n) * 100;
+  const higher = gaps.filter((g) => g.gap > 0).length;
+  return { n, mae: Math.round(mae), pct: Math.round(pct), higher };
+}
+
+function PastMatches({ played }: { played: MatchCard[] }) {
+  const sum = pastSummary(played);
+  const recent = played.slice(0, 3);
+  if (recent.length === 0) return null;
+  return (
+    <section className="card stack" aria-labelledby="past-h">
+      <div className="row-between">
+        <h2 id="past-h">Matches already played: predicted vs what happened</h2>
+        <Link href="/?show=played" className="btn">See all {played.length}</Link>
+      </div>
+      <p className="muted">
+        A fair test: the agent predicted each of these using only what was known <strong>before</strong> the match, then we compared it with the real
+        result. Read each line as predicted team score, then actual. Team scores swing a lot from match to match, so a few matches prove little either way.
+      </p>
+      {sum && (
+        <p>
+          Over <span className="num">{sum.n}</span> past matches the predicted team score was off by about <span className="num">{sum.mae}</span> points
+          (<span className="num">{sum.pct}%</span>) on average, and was higher than the real score in <span className="num">{sum.higher}</span> of them. The{" "}
+          <Link href="/learning">Learning screen</Link> shows where it is wrong and how it adjusts itself after each match.
+        </p>
+      )}
+      <div className="rows">{recent.map((m) => <PlayedRow key={m.cricsheetId} m={m} />)}</div>
+    </section>
+  );
+}
+
 async function MatchList({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
   await connection(); // read live data per visit; never run this while the app is being built
   const { show } = await searchParams;
@@ -127,6 +167,7 @@ async function MatchList({ searchParams }: { searchParams: Promise<{ show?: stri
   return (
     <div className="stack-lg">
       {next && <NextMatch m={next} now={now} />}
+      {tab === "upcoming" && <PastMatches played={played} />}
 
       <div className="stack">
         <div className="seg" role="group" aria-label="Which matches to show">
