@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isT20, matchTeam, matchVenue, parseSeriesInfo, pickSeries, upcomingFromList } from "../src/lib/fixtures";
+import { isT20, matchLeagueTeams, matchTeam, matchVenue, parseSeriesInfo, pickSeries, upcomingFromList } from "../src/lib/fixtures";
 
 const now = new Date("2026-10-13T00:00:00Z");
 const base = { id: "a1", name: "India vs Australia, 1st T20I", matchType: "t20", venue: "Eden Gardens, Kolkata", dateTimeGMT: "2026-10-14T14:00:00", teams: ["India", "Australia"], matchStarted: false, matchEnded: false };
@@ -124,5 +124,26 @@ describe("matchVenue", () => {
   it("refuses an ambiguous match", () => {
     const twins = [{ id: 1, name: "National Stadium", city: "Karachi" }, { id: 2, name: "National Stadium", city: "Dhaka" }];
     expect(matchVenue("National Stadium", twins)).toBeNull();
+  });
+});
+
+describe("matchLeagueTeams", () => {
+  const leagues = [
+    { id: 3, teams: [{ id: 1, name: "India" }, { id: 2, name: "Australia" }] },
+    { id: 5, teams: [{ id: 10, name: "Mumbai Indians" }, { id: 11, name: "Chennai Super Kings" }] },
+    { id: 7, teams: [{ id: 20, name: "Mumbai" }, { id: 21, name: "Delhi" }] },
+  ];
+  it("finds the league where both teams belong", () => {
+    expect(matchLeagueTeams("India", "Australia", leagues)).toEqual({ leagueId: 3, teamA: 1, teamB: 2 });
+    expect(matchLeagueTeams("Mumbai Indians", "Chennai Super Kings", leagues)).toEqual({ leagueId: 5, teamA: 10, teamB: 11 });
+    expect(matchLeagueTeams("Mumbai", "Delhi", leagues)).toEqual({ leagueId: 7, teamA: 20, teamB: 21 });
+  });
+  it("needs both teams in the same league", () => {
+    expect(matchLeagueTeams("India", "Mumbai Indians", leagues)).toBeNull();
+    expect(matchLeagueTeams("Mumbai Indians", "Delhi", leagues)).toBeNull();
+  });
+  it("rejects a team against itself and women's sides", () => {
+    expect(matchLeagueTeams("India", "India", leagues)).toBeNull();
+    expect(matchLeagueTeams("India Women", "Australia Women", leagues)).toBeNull();
   });
 });

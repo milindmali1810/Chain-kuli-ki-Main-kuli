@@ -1,10 +1,10 @@
-// The upcoming-match finder. Asks CricAPI, series by series, for upcoming T20 matches, lists the ones we can predict (men's internationals
-// we have history for), and has the agent build a team for each one that starts soon, so Aryan finds the match already
+// The upcoming-match finder. Asks CricAPI, series by series, for upcoming T20 matches, lists the ones we can predict (men's internationals, IPL and
+// Syed Mushtaq Ali Trophy, the leagues we have history for), and has the agent build a team for each one that starts soon, so Aryan finds the match already
 // listed with its team ready. SERVER ONLY (uses the secret key).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { explainMatch } from "./explainMatch";
-import { matchTeam, matchVenue, parseSeriesInfo, pickSeries, type Fixture, type SeriesRow } from "./fixtures";
+import { matchLeagueTeams, matchVenue, parseSeriesInfo, pickSeries, type Fixture, type SeriesRow } from "./fixtures";
 import { pickTeamForMatch } from "./livePipeline";
 
 const API = "https://api.cricapi.com/v1";
@@ -80,10 +80,13 @@ export async function syncFixtures(db: SupabaseClient, opts: SyncOptions = {}): 
   report.found = fixtures.size;
 
   // 2. List the ones we can predict.
-  const { data: league } = await db.from("leagues").select("id").eq("tier", "international").eq("gender", "male").limit(1).maybeSingle();
-  if (!league) return { ...report, problem: "No men's international league in the data." };
+  // Leagues we have history for, in this order: men's internationals, the IPL and the Syed Mushtaq Ali Trophy.
+  const { data: leagueRows } = await db.from("leagues").select("id, tier, gender").eq("gender", "male");
+  const order = ["international", "franchise", "domestic"];
+  const leagueIds = (leagueRows ?? []).filter((l) => order.includes(l.tier)).sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier)).map((l) => l.id as number);
+  if (leagueIds.length === 0) return { ...report, problem: "No leagues in the data." };
   const [{ data: teams }, { data: venues }, { data: existing }] = await Promise.all([
-    db.from("teams").select("id, name").eq("league_id", league.id),
+    db.from("teams").select("id, name, league_id").in("league_id", leagueIds),
     db.from("venues").select("id, name, city"),
     db.from("matches").select("id, external_id, start_time, team_a, team_b, venue_id").eq("data_origin", "manual"),
   ]);
@@ -97,13 +100,15 @@ export async function syncFixtures(db: SupabaseClient, opts: SyncOptions = {}): 
   const venueRows = (venues ?? []).map((v) => ({ ...v, matches: perVenue.get(v.id) ?? 0 }));
   const byExternal = new Map((existing ?? []).filter((m) => m.external_id).map((m) => [m.external_id as string, m]));
 
+  const leagues = leagueIds.map((id) => ({ id, teams: (teams ?? []).filter((t) => t.league_id === id).map((t) => ({ id: t.id as number, name: t.name as string })) }));
+
   for (const f of fixtures.values()) {
-    const a = matchTeam(f.teamA, teams ?? []);
-    const b = matchTeam(f.teamB, teams ?? []);
-    if (a === null || b === null) {
-      report.skipped.push(`${f.name}: not a men's international we have history for`);
+    const found = matchLeagueTeams(f.teamA, f.teamB, leagues);
+    if (!found) {
+      report.skipped.push(`${f.name}: not a league we have history for (men's internationals, IPL, Syed Mushtaq Ali)`);
       continue;
     }
+    const { teamA: a, teamB: b } = found;
     const known = byExternal.get(f.externalId);
     if (known) {
       // A changed start time, or a ground we could not place before and now can.
@@ -128,7 +133,7 @@ export async function syncFixtures(db: SupabaseClient, opts: SyncOptions = {}): 
     }
     const ins = await db
       .from("matches")
-      .insert({ league_id: league.id, venue_id: matchVenue(f.venueText, venueRows), team_a: a, team_b: b, start_time: f.startUtc, status: "scheduled", data_origin: "manual", external_id: f.externalId })
+      .insert({ league_id: found.leagueId, venue_id: matchVenue(f.venueText, venueRows), team_a: a, team_b: b, start_time: f.startUtc, status: "scheduled", data_origin: "manual", external_id: f.externalId })
       .select("id")
       .single();
     if (ins.error || !ins.data) {

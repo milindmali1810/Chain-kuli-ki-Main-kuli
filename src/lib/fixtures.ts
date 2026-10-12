@@ -109,12 +109,30 @@ const TEAM_ALIASES: Record<string, string> = {
   "united states": "united states of america",
   uae: "united arab emirates",
   png: "papua new guinea",
+  hyderabad: "hyderabad india", // the Syed Mushtaq Ali side, as spelled in our data
+  "royal challengers bangalore": "royal challengers bengaluru", // the current spelling holds the recent history
 };
 
 export function matchTeam(feedName: string, teams: { id: number; name: string }[]): number | null {
   const want = norm(feedName);
   const target = TEAM_ALIASES[want] ?? want;
   return teams.find((t) => norm(t.name) === target)?.id ?? null;
+}
+
+// A fixture belongs to a league only if BOTH teams are in that league's list (so "Mumbai Indians v Chennai Super Kings" is
+// IPL and "India v Australia" is international). Leagues are tried in the order given; two different teams are required.
+export interface LeagueTeams {
+  id: number;
+  teams: { id: number; name: string }[];
+}
+
+export function matchLeagueTeams(teamA: string, teamB: string, leagues: LeagueTeams[]): { leagueId: number; teamA: number; teamB: number } | null {
+  for (const l of leagues) {
+    const a = matchTeam(teamA, l.teams);
+    const b = matchTeam(teamB, l.teams);
+    if (a !== null && b !== null && a !== b) return { leagueId: l.id, teamA: a, teamB: b };
+  }
+  return null;
 }
 
 // Venue: exact label first, then name, then one containing the other, then the same words in a different order or with

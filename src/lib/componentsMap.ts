@@ -67,7 +67,7 @@ export const ACTORS: Actor[] = [
     cells: {
       Trigger: "Vercel's daily scheduler (08:00 IST), the Look for new matches button, or npm run sync:fixtures",
       Input: "CricAPI's list of upcoming T20 matches; our own teams, grounds and match history",
-      Context: "Official feed only (Cricbuzz and Cricinfo forbid scraping); a match is listed only if both teams are men's internationals we have history for; the same match is never listed twice",
+      Context: "Official feed only (Cricbuzz and Cricinfo forbid scraping); a match is listed only if both teams belong to one league we have history for (men's internationals, IPL, Syed Mushtaq Ali); the playing XI is a prediction from each side's last five matches because no free feed publishes it; the same match is never listed twice",
       Processing: "Matches names to ours, saves the match with its exact start time, then builds the predicted XI, estimates the credits and runs the prediction engine for matches starting within 3 days",
       AI: "Gemini writes the reasons afterwards (plain templates if there is no time or Gemini fails)",
       Output: "An Upcoming match on the home list with its team ready; Aryan edits it or keeps it",

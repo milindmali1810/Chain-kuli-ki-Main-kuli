@@ -13,14 +13,15 @@ import { seedCreditsFor } from "./seedCredits";
 
 const WINDOW_MONTHS = 36;
 
-// Players who were in a side's playing XI in its last few internationals before the match, with how many of those
-// matches they played. This is the "predicted XI" until the real one is announced at the toss.
-export async function recentXI(db: SupabaseClient, teamId: number, beforeDate: string, n: number): Promise<{ matches: number; counts: Map<number, number> }> {
+// Players who were in a side's playing XI in its last few matches IN THE SAME LEAGUE before the match (internationals for
+// a national side, IPL games for an IPL side), with how many of those matches they played. This is the "predicted XI"
+// because the free feeds do not publish the real XI.
+export async function recentXI(db: SupabaseClient, teamId: number, beforeDate: string, n: number, leagueId: number): Promise<{ matches: number; counts: Map<number, number> }> {
   const { data: ms, error } = await db
     .from("matches")
-    .select("id, start_time, leagues!inner(tier)")
+    .select("id, start_time")
     .or(`team_a.eq.${teamId},team_b.eq.${teamId}`)
-    .eq("leagues.tier", "international")
+    .eq("league_id", leagueId)
     .lt("start_time", `${beforeDate}T00:00:00Z`)
     .order("start_time", { ascending: false })
     .limit(n);
@@ -45,7 +46,7 @@ export interface PickResult {
 // "final" stage; without it the "provisional" stage is built from the predicted XIs. Re-running replaces only this
 // rubric version's recommendation for that stage.
 export async function pickTeamForMatch(db: SupabaseClient, cricsheetId: string): Promise<PickResult> {
-  const { data: match, error } = await db.from("matches").select("id, start_time, venue_id, team_a, team_b").eq("cricsheet_match_id", cricsheetId).single();
+  const { data: match, error } = await db.from("matches").select("id, start_time, venue_id, team_a, team_b, league_id").eq("cricsheet_match_id", cricsheetId).single();
   if (error) throw new Error(`match ${cricsheetId}: ${error.message}`);
   const date = String(match.start_time).slice(0, 10);
   const matchTeamIds: [number, number] = [match.team_a, match.team_b];
@@ -57,11 +58,11 @@ export async function pickTeamForMatch(db: SupabaseClient, cricsheetId: string):
   const points = POINTS_PROFILES[DEFAULT_POINTS_PROFILE];
 
   let { data: xi } = await db.from("predicted_xi").select("player_id, team_id, source, confidence").eq("match_id", match.id);
-  // Nobody has typed a squad: the agent builds the predicted XI itself from each side's last internationals.
+  // Nobody has typed a squad: the agent builds the predicted XI itself from each side's last matches in this league.
   if (!xi || xi.length === 0) {
     const built: { match_id: number; team_id: number; player_id: number; source: string; confidence: number }[] = [];
     for (const teamId of matchTeamIds) {
-      const recent = await recentXI(db, teamId, date, cfg.availability.lastXIs.value);
+      const recent = await recentXI(db, teamId, date, cfg.availability.lastXIs.value, match.league_id as number);
       for (const [playerId, n] of recent.counts) built.push({ match_id: match.id, team_id: teamId, player_id: playerId, source: "predicted", confidence: n / Math.max(1, recent.matches) });
     }
     if (built.length > 0) {

@@ -8,7 +8,7 @@ import { recentXI } from "./livePipeline";
 export interface SetupPlayer {
   id: number;
   name: string;
-  played: number; // of the side's last few internationals
+  played: number; // of the side's last few matches in this league
   added: boolean; // typed in by Aryan, not in the recent XIs
   inXI: boolean;
   credit: number | null; // typed by Aryan (real Dream11)
@@ -32,7 +32,7 @@ export interface SetupData {
 
 export async function loadSetup(cricsheetId: string): Promise<SetupData | null> {
   const db = serverDb();
-  const { data: m } = await db.from("matches").select("id, start_time, team_a, team_b, data_origin").eq("cricsheet_match_id", cricsheetId).maybeSingle();
+  const { data: m } = await db.from("matches").select("id, start_time, team_a, team_b, data_origin, league_id").eq("cricsheet_match_id", cricsheetId).maybeSingle();
   if (!m || m.data_origin !== "manual") return null;
   const date = String(m.start_time).slice(0, 10);
   const n = RUBRIC.availability.lastXIs.value;
@@ -48,7 +48,7 @@ export async function loadSetup(cricsheetId: string): Promise<SetupData | null> 
 
   const out: SetupTeam[] = [];
   for (const teamId of [m.team_a as number, m.team_b as number]) {
-    const recent = await recentXI(db, teamId, date, n);
+    const recent = await recentXI(db, teamId, date, n, m.league_id as number);
     const stored = (xi ?? []).filter((x) => x.team_id === teamId);
     const added = stored.filter((x) => x.source === "predicted" && x.confidence === null).map((x) => x.player_id as number);
     const ids = [...new Set([...recent.counts.keys(), ...added, ...stored.filter((x) => x.source === "confirmed").map((x) => x.player_id as number)])];

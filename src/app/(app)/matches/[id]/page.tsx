@@ -95,11 +95,23 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
           {match.hasActual ? <span className="chip good"><Icon name="check" size={14} />Played</span> : <span className="chip warn">Not played yet</span>}
           {(match.stages.final ?? match.stages.provisional)?.creditsSeeded !== false && <span className="chip">Credits are estimates, not Dream11&apos;s own</span>}
         </div>
+        {match.upcoming && view && (
+          <p className="muted">
+            The agent built this team from each side&apos;s last five matches, so the playing XI is a prediction. The real XI is announced at the toss; if a player
+            is missing from it, change him in the editor below. Press &quot;Update the team now&quot; to have the agent re-check.
+          </p>
+        )}
         <div className="row">
           {match.cricsheetId.startsWith("live-") && !match.hasActual && (
             <Link href={`/matches/${id}/setup`} className={`btn ${view ? "" : "primary"}`}>Change XI or credits (optional)</Link>
           )}
           <a href="#edit" className="btn primary">Edit and confirm my team</a>
+          {match.upcoming && view && (
+            <form action={buildTeamNow}>
+              <input type="hidden" name="match" value={match.cricsheetId} />
+              <button type="submit" className="btn">Update the team now</button>
+            </form>
+          )}
           <a href="#enter" className="btn">Enter the points my team scored</a>
         </div>
       </div>
