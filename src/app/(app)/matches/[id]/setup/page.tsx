@@ -6,7 +6,7 @@ import { Icon } from "@/components/icons";
 import { loadSetup } from "@/lib/liveSetup";
 import { SetupForm } from "./SetupForm";
 
-export const metadata = { title: "Squad, XI and credits" };
+export const metadata = { title: "Change the playing XI" };
 export const maxDuration = 60; // picking a team reads the match history and calls Gemini
 
 async function Loader({ params }: { params: Promise<{ id: string }> }) {
@@ -19,7 +19,7 @@ async function Loader({ params }: { params: Promise<{ id: string }> }) {
       <div className="stack">
         <Link href={`/matches/${id}`} className="row" style={{ minHeight: 44, textDecoration: "none" }}><Icon name="back" />Back to the match</Link>
         <div className="page-head" style={{ marginBottom: 0 }}>
-          <h1>Squad, playing XI and credits</h1>
+          <h1>Change the playing XI</h1>
           <p className="muted">{setup.teams[0].name} v {setup.teams[1].name}</p>
         </div>
       </div>
@@ -27,10 +27,7 @@ async function Loader({ params }: { params: Promise<{ id: string }> }) {
         <div className="banner"><Icon name="alert" /><p>This match has started, so the squad, XI and credits can no longer be changed.</p></div>
       ) : (
         <>
-          <div className="banner info" role="note">
-            <Icon name="info" />
-            <p>Before the toss, enter the credits and press &quot;Save and pick my team&quot; to get a provisional team. After the toss, tick the playing XI for both teams and pick again to get the final team.</p>
-          </div>
+          <p className="muted">The agent has already picked a team, so you do not need this page. Use it only if the real playing XI is different, or you know the Dream11 credits.</p>
           <SetupForm cricsheetId={id} teams={setup.teams} />
         </>
       )}

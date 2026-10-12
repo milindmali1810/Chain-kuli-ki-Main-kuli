@@ -1,13 +1,36 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { Icon } from "@/components/icons";
 import { ROLE_LABEL } from "@/lib/format";
 import { serverDb } from "@/lib/db";
 import { removeRoleOverride, saveRoleOverride } from "./actions";
 
 export const metadata = { title: "Data" };
 
+const SHOWN = 8; // rows shown at first; the rest wait behind "Show more"
+
 interface Left { playerId: number; name: string; reasons: Set<string>; matches: number }
+
+function LeftOutRow({ l }: { l: Left }) {
+  return (
+    <li className="player" style={{ padding: "var(--s3) var(--s4)" }}>
+      <form action={saveRoleOverride} className="row-between" style={{ gap: "var(--s3)" }}>
+        <input type="hidden" name="playerId" value={l.playerId} />
+        <div className="who">
+          <span className="name">{l.name}</span>
+          <span className="meta">Too little recent history · in {l.matches} match{l.matches === 1 ? "" : "es"}</span>
+        </div>
+        <div className="row">
+          <label className="sr-only" htmlFor={`role_${l.playerId}`}>Role for {l.name}</label>
+          <select id={`role_${l.playerId}`} name="role" defaultValue="" required style={{ minHeight: 44, padding: "0 12px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", font: "inherit" }}>
+            <option value="" disabled>Choose a role</option>
+            {Object.entries(ROLE_LABEL).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </select>
+          <button type="submit" className="btn">Save</button>
+        </div>
+      </form>
+    </li>
+  );
+}
 
 async function DataView() {
   await connection(); // read live data per visit; never run this while the app is being built
@@ -35,48 +58,39 @@ async function DataView() {
     for (const p of ps ?? []) names.set(p.id, p.name);
   }
   const overrideOf = new Map((overrides ?? []).map((o) => [o.entity_id, o.value as string]));
-  const rows = [...left.values()].filter((l) => !overrideOf.has(l.playerId)).sort((a, b) => b.matches - a.matches).slice(0, 40);
+  const rows = [...left.values()].filter((l) => !overrideOf.has(l.playerId)).sort((a, b) => b.matches - a.matches).slice(0, 60);
+  const first = rows.slice(0, SHOWN);
+  const rest = rows.slice(SHOWN);
 
   return (
     <div className="stack-lg">
       <section className="stack" aria-labelledby="left-h">
-        <h2 id="left-h">Players left out for missing data</h2>
-        <p className="muted">
-          The agent never guesses a role. If a player has too little recent history, he is left out and listed here. Give him a role and he is
-          included the next time that match is predicted.
-        </p>
+        <h2 id="left-h">Players the agent left out</h2>
+        <p className="muted">The agent never guesses a role. A player with too little recent history is left out and listed here. Give him a role and he is included next time.</p>
         {rows.length === 0 ? (
-          <div className="card empty"><h3>Nobody is waiting</h3><p className="muted">Every player in the stored matches had enough data.</p></div>
+          <div className="card empty"><h3>Nobody is waiting</h3><p className="muted">Every player had enough data.</p></div>
         ) : (
-          <ul className="players" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-            {rows.map((l) => (
-              <li key={l.playerId} className="player" style={{ padding: "var(--s3) var(--s4)" }}>
-                <form action={saveRoleOverride} className="row-between" style={{ gap: "var(--s3)" }}>
-                  <input type="hidden" name="playerId" value={l.playerId} />
-                  <div className="who">
-                    <span className="name">{l.name}</span>
-                    <span className="meta">{[...l.reasons].join("; ")} · in {l.matches} match{l.matches === 1 ? "" : "es"}</span>
-                  </div>
-                  <div className="row">
-                    <label className="sr-only" htmlFor={`role_${l.playerId}`}>Role for {l.name}</label>
-                    <select id={`role_${l.playerId}`} name="role" defaultValue="" required style={{ minHeight: 44, padding: "0 12px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", font: "inherit" }}>
-                      <option value="" disabled>Choose a role</option>
-                      {Object.entries(ROLE_LABEL).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-                    </select>
-                    <button type="submit" className="btn">Save role</button>
-                  </div>
-                </form>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="players" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {first.map((l) => <LeftOutRow key={l.playerId} l={l} />)}
+            </ul>
+            {rest.length > 0 && (
+              <details className="more">
+                <summary>Show {rest.length} more</summary>
+                <div className="body">
+                  <ul className="players" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                    {rest.map((l) => <LeftOutRow key={l.playerId} l={l} />)}
+                  </ul>
+                </div>
+              </details>
+            )}
+          </>
         )}
       </section>
 
-      <section className="stack" aria-labelledby="manual-h">
-        <h2 id="manual-h">Roles you set by hand</h2>
-        {(overrides ?? []).length === 0 ? (
-          <p className="muted">None yet.</p>
-        ) : (
+      {(overrides ?? []).length > 0 && (
+        <section className="stack" aria-labelledby="manual-h">
+          <h2 id="manual-h">Roles you set</h2>
           <ul className="players" style={{ listStyle: "none", margin: 0, padding: 0 }}>
             {(overrides ?? []).map((o) => (
               <li key={o.entity_id} className="player" style={{ padding: "var(--s3) var(--s4)" }}>
@@ -88,13 +102,10 @@ async function DataView() {
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
 
-      <div className="banner info" role="note">
-        <Icon name="info" />
-        <p>Manual values always win over values the agent worked out. They apply the next time a match is predicted (run the backtest for that match again).</p>
-      </div>
+      <p className="muted">Roles you set always win over what the agent worked out. They apply the next time a team is built for a match.</p>
     </div>
   );
 }
@@ -104,7 +115,7 @@ export default function DataPage() {
     <div className="stack-lg">
       <div className="page-head">
         <h1>Data</h1>
-        <p className="muted">Fill gaps the agent will not guess. Your values override anything it worked out.</p>
+        <p className="muted">Fill gaps the agent will not guess.</p>
       </div>
       <Suspense fallback={<div className="stack-lg" aria-busy="true"><div className="skeleton" /><div className="skeleton" /></div>}>
         <DataView />

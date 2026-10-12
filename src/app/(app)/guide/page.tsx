@@ -1,100 +1,98 @@
+import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { CAPTAIN_INTRO, CAPTAIN_STEPS } from "@/lib/captainRules";
 
 export const metadata = { title: "Guide" };
 
 const STEPS = [
-  { title: "1. Gather", text: "Five years of real match data (international T20s, the IPL and Syed Mushtaq Ali Trophy) from Cricsheet, plus weather from Open-Meteo. All of it sits in a private database." },
-  { title: "2. Score", text: "A points calculator turns any player's match into Dream11 points, using a points table that is stored as data, not buried in code." },
-  { title: "3. Predict", text: "For each player the agent estimates points from his recent matches, adjusted for the ground, his team's recent form, and whether he bowls the death overs. It only uses matches played before the one being predicted." },
-  { title: "4. Pick", text: "Plain code searches for the best legal team of 11 within 100 credits and the team and role limits, then chooses the captain and vice-captain. The search is exact, and a separate rules checker confirms the team is valid." },
+  { title: "1. Gather", text: "Years of real match data (men's international T20s, the IPL and the Syed Mushtaq Ali Trophy) from Cricsheet, plus weather from Open-Meteo, in a private database. A free fixture feed tells the agent which matches are coming up." },
+  { title: "2. Score", text: "A points calculator turns any player's match into Dream11 points, using a points table stored as data, not buried in code." },
+  { title: "3. Predict", text: "For each player the agent estimates points mainly from his recent matches, with small adjustments for the ground and his team's form. It only uses matches played before the one being predicted." },
+  { title: "4. Pick", text: "Plain code searches for the best legal team of 11 within 100 credits and the team and role limits, then chooses the captain and vice-captain. A separate rules checker confirms the team is valid." },
   { title: "5. Explain", text: "Gemini Flash writes the reasons. It only receives numbers the code produced, and a checker throws away any sentence containing a number that is not in those facts." },
-  { title: "6. Compare", text: "After the match, real points sit beside the predicted ones. Aryan can type in the real Dream11 points. The Learning screen shows where the agent is consistently wrong and proposes a correction, which only takes effect if he accepts it." },
+  { title: "6. Learn", text: "After a match you type in the points your team scored. The agent compares them with what it predicted and makes a small, undoable correction for the next match." },
 ];
 
 const LIMITS = [
-  "Credits are seeded, not Dream11's own, because Dream11 publishes no free credit data. Every seeded credit is labelled.",
-  "Team rules default to the strict reading (at most 7 players per side, 1-4 keepers, 3-6 batters, 1-4 all-rounders, 3-6 bowlers). Sources disagree with a looser reading, and a team valid under the strict rules is valid under both.",
+  "Credits are the agent's own estimates, not Dream11's, because Dream11 publishes no free credit data. Each one is labelled.",
+  "The playing XI is a prediction from each side's last five matches. The real XI is announced at the toss and no free source publishes it, so change a player yourself if he is missing.",
+  "How good is it? On past matches the agent's picks beat a random legal team by a small but real margin. Most of that comes from plain recent form. The Learning screen shows the numbers and how sure they are.",
+  "Team rules use the strict reading (at most 7 players per side, 1-4 keepers, 3-6 batters, 1-4 all-rounders, 3-6 bowlers). A team valid under the strict rules is valid under the looser reading too.",
   "The points table is likely right (a second source agrees) but is not confirmed against Dream11 itself.",
-  "The demo matches have already been played. Each prediction uses only data from before the match, which is a fair test.",
   "Not used because the data is unavailable: batter against bowler type, spin against pace, batting order.",
-  "Afghanistan matches are withheld by the data source, and there is no Indian first-class data.",
+  "Afghanistan matches are withheld by the data source, and there is no Indian first-class data (Ranji, Duleep).",
 ];
+
+function Section({ title, open, children }: { title: string; open?: boolean; children: React.ReactNode }) {
+  return (
+    <details className="more" open={open}>
+      <summary>{title}</summary>
+      <div className="body">{children}</div>
+    </details>
+  );
+}
 
 export default function GuidePage() {
   return (
     <div className="stack-lg">
       <div className="page-head">
         <h1>Guide</h1>
-        <p className="muted">How the optimizer works, in plain English.</p>
+        <p className="muted">How to use the app, and how it works, in plain English.</p>
       </div>
+
+      <Section title="How to use it" open>
+        <ol className="stack" style={{ margin: 0, paddingLeft: 20 }}>
+          <li><strong>Open the next match.</strong> The agent has already picked a team. Tap a player to see why he was picked, and read the captain and vice-captain reasons.</li>
+          <li><strong>Keep it or change it.</strong> Press <strong>Confirm my team</strong> if you are happy. To change something, open <strong>Change players, captain or vice-captain</strong>: the screen keeps checking the rules and tells you in plain English if a change breaks one. You can edit until the match starts, then it is locked. You then enter the team in Dream11 yourself.</li>
+          <li><strong>After the match, enter your points.</strong> Open <strong>After the match: enter the points your team scored</strong>. Change only the players whose Dream11 points differ from the pre-filled numbers, type the team total Dream11 shows, and save. The agent then learns from them for the next match.</li>
+        </ol>
+      </Section>
 
       <div className="banner info" role="note">
         <Icon name="info" />
         <p><strong>The one rule that matters:</strong> code picks and checks, Gemini only explains. The AI never chooses a player and never checks a rule.</p>
       </div>
 
-      <div className="row">
-        <a href="/guide/map" className="btn">Open the components map</a>
-      </div>
-
-      <section className="stack" aria-labelledby="how-h">
-        <h2 id="how-h">How a recommendation is made</h2>
+      <Section title="How a recommendation is made">
         <ol className="stack" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {STEPS.map((s) => (
-            <li key={s.title} className="card">
+            <li key={s.title}>
               <h3>{s.title}</h3>
-              <p className="muted" style={{ marginTop: 4 }}>{s.text}</p>
+              <p className="muted" style={{ marginTop: 2 }}>{s.text}</p>
             </li>
           ))}
         </ol>
-      </section>
+      </Section>
 
-      <section className="stack" aria-labelledby="cap-h">
-        <h2 id="cap-h">How the captain and vice-captain are chosen</h2>
+      <Section title="How the captain and vice-captain are chosen">
         <p className="muted">{CAPTAIN_INTRO}</p>
         <ol className="stack" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {CAPTAIN_STEPS.map((s) => (
-            <li key={s.title} className="card">
+            <li key={s.title}>
               <h3>{s.title}</h3>
-              <p className="muted" style={{ marginTop: 4 }}>{s.text}</p>
+              <p className="muted" style={{ marginTop: 2 }}>{s.text}</p>
             </li>
           ))}
         </ol>
-      </section>
+      </Section>
 
-      <section className="stack" aria-labelledby="edit-h">
-        <h2 id="edit-h">Can I change the agent&apos;s team?</h2>
-        <p className="muted">
-          Yes. On a match, tap <strong>Edit and confirm my team</strong>. It starts from the agent&apos;s team. Add or remove players, choose the captain and
-          vice-captain, and watch the credits and the rule checks update as you go. If a change breaks a rule, the screen says which one in plain English.
-          Press <strong>Confirm my team</strong> to save it. Before the match starts you can keep editing. After it starts the team is locked. You then enter the team in Dream11 yourself.
-          A match that has already been played is <strong>practice</strong>: you can still edit and confirm a team to try the flow.
-        </p>
-      </section>
-
-      <section className="stack" aria-labelledby="enter-h">
-        <h2 id="enter-h">After the match: where do I enter the points my team scored?</h2>
-        <p className="muted">Open the match and tap <strong>Enter the points my team scored</strong> (or scroll to the bottom). The list is the team you confirmed, or the agent&apos;s team if you never edited it. Change only the players whose Dream11 points differ from the pre-filled numbers, type the <strong>team total Dream11 shows</strong>, and save. The match then shows what your team scored, and checks our own calculation against the Dream11 total you typed. A match supports our points table; a difference points to a rule that Dream11 scores differently.</p>
-      </section>
-
-      <section className="stack" aria-labelledby="read-h">
-        <h2 id="read-h">Reading a match</h2>
+      <Section title="Reading a match">
         <ul className="stack" style={{ margin: 0, paddingLeft: 20 }}>
-          <li><strong>Final</strong> is built from the confirmed playing XI. <strong>Provisional</strong> is built before the toss from predicted XIs, so some players may not play.</li>
-          <li><strong>Predicted</strong> bars are outlined and <strong>Actual</strong> bars are solid. The numbers are printed beside them.</li>
           <li><strong>C</strong> and <strong>VC</strong> mark the captain (2x points) and vice-captain (1.5x points).</li>
-          <li>Tap a player to see why he was picked and his most recent scores, oldest to newest.</li>
+          <li>The number beside a player is the points the agent expects from him. Tap him for the reason and his recent scores, oldest to newest.</li>
+          <li>On a match already played, the bars compare <strong>Predicted</strong> (outlined) with <strong>Actual</strong> (solid).</li>
+          <li><strong>Final</strong> is built from the confirmed playing XI; <strong>Provisional</strong> from predicted XIs. Switch between them under &ldquo;More about this team&rdquo;.</li>
           <li>The team score adds the 11 players&apos; points plus the captain&apos;s and vice-captain&apos;s extras, the same way for predicted and actual.</li>
         </ul>
-      </section>
+      </Section>
 
-      <section className="stack" aria-labelledby="limits-h">
-        <h2 id="limits-h">What to keep in mind</h2>
+      <Section title="What to keep in mind">
         <ul className="stack" style={{ margin: 0, paddingLeft: 20 }}>
           {LIMITS.map((l) => <li key={l}>{l}</li>)}
         </ul>
-      </section>
+      </Section>
+
+      <Link href="/guide/map" className="more-link">Open the components map (every part, from trigger to output)</Link>
     </div>
   );
 }

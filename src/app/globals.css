@@ -366,3 +366,7 @@ details.quiet > summary { cursor: pointer; min-height: 44px; display: flex; alig
 /* Match page: calm player lines, big result numbers */
 .pts-sm { align-self: center; color: var(--text-muted); font-size: 0.9375rem; }
 .big-n { font-size: 1.75rem; font-weight: 600; }
+
+/* Three numbers side by side (Learning verdict) */
+.three { display: grid; gap: var(--s3); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 420px) { .three .metric { padding: var(--s3); } .three .metric .v { font-size: 1.25rem; } }
