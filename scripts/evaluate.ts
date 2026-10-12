@@ -46,8 +46,19 @@ async function main() {
     .limit(N + 10);
   if (error) throw new Error(error.message);
 
+  // --big: keep only matches between two established sides (40+ matches since 2024), like the matches Aryan will face.
+  let bigTeams: Set<number> | null = null;
+  if (args.includes("--big")) {
+    const { data: all } = await db.from("matches").select("team_a, team_b").eq("league_id", league!.id).gte("start_time", "2024-01-01T00:00:00Z").limit(5000);
+    const count = new Map<number, number>();
+    for (const m of all ?? []) for (const t of [m.team_a as number, m.team_b as number]) count.set(t, (count.get(t) ?? 0) + 1);
+    bigTeams = new Set([...count].filter(([, n]) => n >= 40).map(([t]) => t));
+    console.log(`Established sides (40+ matches since 2024): ${bigTeams.size}`);
+  }
+
   const cases: Case[] = [];
   for (const m of ms ?? []) {
+    if (bigTeams && !(bigTeams.has(m.team_a) && bigTeams.has(m.team_b))) continue;
     const { data: lines } = await db.from("player_match_lines").select("player_id, team_id, stats_json").eq("match_id", m.id);
     const xi = (lines ?? []).filter((l) => (l.stats_json as StatsNoRole).inPlayingXI).map((l) => ({ playerId: l.player_id as number, teamId: l.team_id as number, stats: l.stats_json as StatsNoRole }));
     const per = new Map<number, number>();
