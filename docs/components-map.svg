@@ -5,6 +5,7 @@
 <text x="24" y="48" font-size="22" font-weight="700" class="md-text">Before the match</text>
 <text x="24" y="70" font-size="13.5" class="md-text md-muted">From the morning check to a team Aryan can keep or change.</text>
 <svg x="12" y="94" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1170 658" width="1170" height="658" role="img" aria-label="Before the match. From the morning check to a team Aryan can keep or change. Steps: Morning job: Every morning, or the Look for new matches button; Fixture feed: Lists upcoming T20 matches with start time; History: Last five XIs, form, ground, weather; Engine: Predicts points, finds the best legal team; Gemini Flash: Writes the reasons from the numbers; Engine: Rules checker passes it, team saved; Web app: Match listed with the team ready; Aryan: Reviews, edits, confirms."><style>
+text { font-family: system-ui, -apple-system, "Segoe UI", Arial, Helvetica, sans-serif; }
 .md-text { fill: #1c2a40; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 .md-muted { fill: #52627a; }
 .md-line { stroke: #c9d3e2; stroke-width: 1.2; }
@@ -35,6 +36,7 @@
 <text x="24" y="804" font-size="22" font-weight="700" class="md-text">After the match</text>
 <text x="24" y="826" font-size="13.5" class="md-text md-muted">How the agent learns from the points Aryan enters.</text>
 <svg x="12" y="850" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1170 486" width="1170" height="486" role="img" aria-label="After the match. How the agent learns from the points Aryan enters. Steps: Aryan: Types the points his team scored; Web app: Saves only the boxes he changed; Database: Predicted vs actual for every player; Learning loop: Finds where it is consistently wrong; Learning loop: Small correction, saved as a new version; Web app: Learning screen shows it, with Undo; Engine: The next match uses the new version."><style>
+text { font-family: system-ui, -apple-system, "Segoe UI", Arial, Helvetica, sans-serif; }
 .md-text { fill: #1c2a40; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 .md-muted { fill: #52627a; }
 .md-line { stroke: #c9d3e2; stroke-width: 1.2; }

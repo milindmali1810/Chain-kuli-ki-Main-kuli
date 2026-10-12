@@ -5,6 +5,7 @@ import { LAYOUT, layoutFlow, type Flow } from "@/lib/mapDiagram";
 // follows light or dark mode through prefers-color-scheme.
 
 const STYLE = `
+text { font-family: system-ui, -apple-system, "Segoe UI", Arial, Helvetica, sans-serif; }
 .md-text { fill: #1c2a40; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 .md-muted { fill: #52627a; }
 .md-line { stroke: #c9d3e2; stroke-width: 1.2; }
