@@ -48,3 +48,6 @@ next-env.d.ts
 
 # downloaded raw data (large, reproducible by the ingestion script)
 /data/
+
+# the demo video is large; submit it as a file, not through git
+/demo/
