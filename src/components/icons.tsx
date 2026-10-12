@@ -1,7 +1,7 @@
 // One icon set (outline, 2px stroke, round caps), inline SVG so nothing loads from the network.
 // Icons beside visible text are decorative (aria-hidden); icon-only controls must carry their own label.
 
-type IconName = "list" | "chart" | "database" | "help" | "check" | "alert" | "info" | "logout" | "back" | "bolt";
+type IconName = "list" | "chart" | "database" | "help" | "check" | "alert" | "info" | "logout" | "back" | "bolt" | "clock" | "chevron";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   list: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
@@ -14,6 +14,8 @@ const PATHS: Record<IconName, React.ReactNode> = {
   logout: (<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5M21 12H9" /></>),
   back: <path d="m15 18-6-6 6-6" />,
   bolt: <path d="M13 2 3 14h9l-1 8 10-12h-9z" />,
+  clock: (<><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></>),
+  chevron: <path d="m9 18 6-6-6-6" />,
 };
 
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {

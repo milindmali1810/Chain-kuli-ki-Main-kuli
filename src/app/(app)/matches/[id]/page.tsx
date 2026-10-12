@@ -8,6 +8,7 @@ import { ROLE_LABEL, formatDate, formatIst, num, pctEffect } from "@/lib/format"
 import { getMatch, type PlayerRow, type StageView } from "@/lib/queries";
 import { loadEditorData } from "@/lib/editor";
 import { reconcile } from "@/lib/editorLogic";
+import { matchState } from "@/lib/matchState";
 import { teamScore } from "@/lib/teamScore";
 import { EntryForm } from "./EntryForm";
 import { TeamEditor } from "./TeamEditor";
@@ -91,29 +92,52 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
           <h1>{match.teams[0]} v {match.teams[1]}</h1>
           <p className="muted">{match.upcoming ? formatIst(match.startUtc) : formatDate(match.date)} · {match.venue}</p>
         </div>
-        <div className="row">
-          {match.hasActual ? <span className="chip good"><Icon name="check" size={14} />Played</span> : <span className="chip warn">Not played yet</span>}
-          {(match.stages.final ?? match.stages.provisional)?.creditsSeeded !== false && <span className="chip">Credits are estimates, not Dream11&apos;s own</span>}
-        </div>
-        {match.upcoming && view && (
-          <p className="muted">
-            The agent built this team from each side&apos;s last five matches, so the playing XI is a prediction. The real XI is announced at the toss; if a player
-            is missing from it, change him in the editor below. Press &quot;Update the team now&quot; to have the agent re-check.
-          </p>
-        )}
-        <div className="row">
-          {match.cricsheetId.startsWith("live-") && !match.hasActual && (
-            <Link href={`/matches/${id}/setup`} className={`btn ${view ? "" : "primary"}`}>Change XI or credits (optional)</Link>
-          )}
-          <a href="#edit" className="btn primary">Edit and confirm my team</a>
-          {match.upcoming && view && (
-            <form action={buildTeamNow}>
-              <input type="hidden" name="match" value={match.cricsheetId} />
-              <button type="submit" className="btn">Update the team now</button>
-            </form>
-          )}
-          <a href="#enter" className="btn">Enter the points my team scored</a>
-        </div>
+        {(() => {
+          const live = match.cricsheetId.startsWith("live-");
+          const state = matchState({ live, startUtc: match.startUtc, hasTeam: Boolean(view), confirmed: Boolean(editor?.saved), hasActual: match.hasActual }, new Date());
+          const confirmed = Boolean(editor?.saved);
+          return (
+            <>
+              <div className="row">
+                {live ? (
+                  <span className={`chip ${state.tone === "good" ? "good" : state.tone === "warn" ? "warn" : state.tone === "info" ? "info" : ""}`}>{state.label}</span>
+                ) : match.hasActual ? (
+                  <span className="chip good"><Icon name="check" size={14} />Played</span>
+                ) : (
+                  <span className="chip warn">Not played yet</span>
+                )}
+                {(match.stages.final ?? match.stages.provisional)?.creditsSeeded !== false && <span className="chip">Credits are estimates, not Dream11&apos;s own</span>}
+              </div>
+              {match.upcoming && view && (
+                <p className="muted">This team is the agent’s prediction: the real XI is announced at the toss. If a player is missing, change him in step 2.</p>
+              )}
+              {live && view && (
+                <ol className="steps" aria-label="What to do">
+                  <li><a href="#team" className="step" aria-current={state.step === 1 ? "step" : undefined} data-done={confirmed || state.step === 3}><span className="n">Step 1</span><span className="t">Review the team</span></a></li>
+                  <li><a href="#edit" className="step" aria-current={state.step === 2 ? "step" : undefined} data-done={confirmed}><span className="n">Step 2</span><span className="t">Edit and confirm</span></a></li>
+                  <li><a href="#enter" className="step" aria-current={state.step === 3 && !match.hasActual ? "step" : undefined} data-done={match.hasActual}><span className="n">Step 3</span><span className="t">Enter points</span></a></li>
+                </ol>
+              )}
+              {!live && view && (
+                <div className="row">
+                  <a href="#edit" className="btn">Edit and confirm my team</a>
+                  <a href="#enter" className="btn">Enter the points my team scored</a>
+                </div>
+              )}
+              {live && !match.hasActual && (
+                <div className="row">
+                  {view && (
+                    <form action={buildTeamNow}>
+                      <input type="hidden" name="match" value={match.cricsheetId} />
+                      <button type="submit" className="btn">Update the team now</button>
+                    </form>
+                  )}
+                  <Link href={`/matches/${id}/setup`} className="btn">Change XI or credits (optional)</Link>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {!view ? (
@@ -168,7 +192,7 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
           </div>
 
           <div className="two-col">
-            <section aria-labelledby="team-h" className="stack">
+            <section id="team" aria-labelledby="team-h" className="stack">
               <h2 id="team-h">Recommended team</h2>
               <p className="muted">Tap a player to see why he was picked. Bars compare predicted and actual points.</p>
               <div className="players">
@@ -207,28 +231,33 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
                 </details>
               </section>
 
-              <section className="card stack" aria-labelledby="pitch-h">
-                <h2 id="pitch-h">Pitch and weather</h2>
-                <p>{match.pitchReport ?? "No pitch report stored yet."}</p>
-              </section>
+              <details className="more">
+                <summary>More about this team: pitch, summary, limits</summary>
+                <div className="body">
+                  <section className="card stack" aria-labelledby="pitch-h">
+                    <h2 id="pitch-h">Pitch and weather</h2>
+                    <p>{match.pitchReport ?? "No pitch report stored yet."}</p>
+                  </section>
 
-              {view.summary && (
-                <section className="card stack" aria-labelledby="sum-h">
-                  <h2 id="sum-h">About this team</h2>
-                  <p>{view.summary}</p>
-                </section>
-              )}
+                  {view.summary && (
+                    <section className="card stack" aria-labelledby="sum-h">
+                      <h2 id="sum-h">About this team</h2>
+                      <p>{view.summary}</p>
+                    </section>
+                  )}
 
-              <section className="card stack" aria-labelledby="limits-h">
-                <h2 id="limits-h">What the model could not use</h2>
-                <ul style={{ margin: 0, paddingLeft: 18 }}>
-                  {view.unavailableFactors.map((f) => <li key={f}>{f}</li>)}
-                </ul>
-                {view.excluded.length > 0 && (
-                  <p className="muted">Left out for missing data: {view.excluded.map((e) => `${e.name} (${e.reason})`).join("; ")}.</p>
-                )}
-                {view.deathLog.map((d) => <p className="muted" key={d}>{d}</p>)}
-              </section>
+                  <section className="card stack" aria-labelledby="limits-h">
+                    <h2 id="limits-h">What the model could not use</h2>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {view.unavailableFactors.map((f) => <li key={f}>{f}</li>)}
+                    </ul>
+                    {view.excluded.length > 0 && (
+                      <p className="muted">Left out for missing data: {view.excluded.map((e) => `${e.name} (${e.reason})`).join("; ")}.</p>
+                    )}
+                    {view.deathLog.map((d) => <p className="muted" key={d}>{d}</p>)}
+                  </section>
+                </div>
+              </details>
             </aside>
           </div>
 

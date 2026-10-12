@@ -11,7 +11,7 @@ export function FindMatches() {
   return (
     <form action={action} className="stack">
       <div className="row">
-        <button type="submit" className="btn primary" disabled={pending}>{pending ? "Looking… this can take a minute" : "Look for new matches"}</button>
+        <button type="submit" className="btn" disabled={pending}>{pending ? "Looking… this can take a minute" : "Look for new matches"}</button>
       </div>
       {state.message && (
         <div role={state.ok ? "status" : "alert"} className={state.ok ? "banner info" : "banner"}>

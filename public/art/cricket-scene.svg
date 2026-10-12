@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none" stroke="#000" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+  <!-- stumps and bails -->
+  <rect x="128" y="196" width="14" height="168" rx="7"/>
+  <rect x="193" y="196" width="14" height="168" rx="7"/>
+  <rect x="258" y="196" width="14" height="168" rx="7"/>
+  <path d="M142 190h51M207 190h51"/>
+  <!-- crease lines -->
+  <path d="M60 364h280M96 330h208"/>
+  <!-- ball with seam -->
+  <circle cx="318" cy="268" r="44"/>
+  <path d="M290 238c18 10 18 50 0 60M346 238c-18 10-18 50 0 60"/>
+  <!-- bat -->
+  <g transform="rotate(-24 70 250)">
+    <rect x="48" y="150" width="44" height="150" rx="14"/>
+    <path d="M70 150v-62"/>
+    <rect x="62" y="64" width="16" height="30" rx="8"/>
+  </g>
+</svg>

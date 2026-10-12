@@ -1,34 +1,38 @@
-/* Design tokens from design-system/match-day-optimizer/MASTER.md.
-   Swiss-minimal, calm, data-dense. Light and dark are designed together; every text pair is checked for 4.5:1. */
+/* Design tokens from design-system/match-day-optimizer/MASTER.md ("pitch and twilight" palette, revised 13 Oct 2026).
+   Calm greens like a cricket pitch, warm off-white in light mode, deep green-black in dark mode. Light and dark are designed
+   together; every text pair is checked for 4.5:1 (lowest 5.86:1). */
 
 :root {
-  --bg: #f6f8fb;
+  --bg: #f4f7f1;
   --surface: #ffffff;
-  --surface-2: #eef2f8;
-  --text: #0f172a;
-  --text-muted: #475569;
-  --border: #d3dcea;
-  --primary: #1e40af;
+  --surface-2: #ebf1e8;
+  --text: #14231a;
+  --text-muted: #4a5d51;
+  --border: #d4dfd0;
+  --primary: #1b6a46;
   --on-primary: #ffffff;
-  --primary-soft: #dbeafe;
-  --on-primary-soft: #1e3a8a;
-  --accent: #b45309;
+  --primary-soft: #dcefe2;
+  --on-primary-soft: #124a31;
+  --accent: #9a5208;
   --good: #166534;
-  --good-soft: #dcfce7;
-  --bad: #b91c1c;
-  --bad-soft: #fee2e2;
-  --warn: #92400e;
-  --warn-soft: #fef3c7;
-  --bar-predicted: #1e40af;
-  --bar-actual: #b45309;
-  --focus: #1e40af;
+  --good-soft: #dcf3e1;
+  --bad: #a61e1e;
+  --bad-soft: #fde4e4;
+  --warn: #8a4a07;
+  --warn-soft: #fdf0d2;
+  --bar-predicted: #1b6a46;
+  --bar-actual: #9a5208;
+  --focus: #1b6a46;
+  --art: #1b6a46; /* colour of the faint cricket drawing in the background */
+  --stripe: rgba(27, 106, 70, 0.045); /* mowed-pitch stripes */
+  --shadow: rgba(20, 35, 26, 0.35);
 
   --font-sans: var(--font-fira-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-num: var(--font-fira-code), ui-monospace, "SFMono-Regular", Menlo, monospace;
 
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
-  --radius: 10px;
-  --radius-sm: 6px;
+  --radius: 14px;
+  --radius-sm: 8px;
   --nav-w: 232px;
   --bottom-nav-h: 64px;
   --maxw: 1120px;
@@ -37,26 +41,29 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0b1220;
-    --surface: #111a2c;
-    --surface-2: #18233a;
-    --text: #e6ebf4;
-    --text-muted: #9fb0c8;
-    --border: #273654;
-    --primary: #8fb4ff;
-    --on-primary: #0b1220;
-    --primary-soft: #1b2c52;
-    --on-primary-soft: #c7dbff;
-    --accent: #f5b455;
-    --good: #86efac;
-    --good-soft: #123524;
-    --bad: #fca5a5;
-    --bad-soft: #3b1518;
+    --bg: #0d1913;
+    --surface: #13231a;
+    --surface-2: #1a3025;
+    --text: #e7f0ea;
+    --text-muted: #a6bcad;
+    --border: #2b4336;
+    --primary: #74d6a5;
+    --on-primary: #07130c;
+    --primary-soft: #1b3b2b;
+    --on-primary-soft: #cdf1dc;
+    --accent: #f0b35a;
+    --good: #8be8ac;
+    --good-soft: #14361f;
+    --bad: #ffaaaa;
+    --bad-soft: #3d1719;
     --warn: #fcd34d;
     --warn-soft: #3a2a0a;
-    --bar-predicted: #8fb4ff;
-    --bar-actual: #f5b455;
-    --focus: #8fb4ff;
+    --bar-predicted: #74d6a5;
+    --bar-actual: #f0b35a;
+    --focus: #74d6a5;
+    --art: #74d6a5;
+    --stripe: rgba(116, 214, 165, 0.05);
+    --shadow: rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -244,3 +251,74 @@ tr:last-child td { border-bottom: 0; }
 .setup-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); border-bottom: 1px solid var(--border); padding-bottom: var(--s2); }
 .setup-xi { display: flex; align-items: center; gap: var(--s3); min-height: 44px; flex: 1; min-width: 0; cursor: pointer; }
 .setup-xi input { width: 22px; height: 22px; flex: none; }
+
+/* ---------- Look and feel (13 Oct 2026): background art, home list, steps, gentle effects ---------- */
+
+/* Background: soft mowed-pitch stripes with a faint glow, and a faint drawing of stumps, ball and bat (own artwork,
+   public/art/cricket-scene.svg). Both sit behind everything, never take clicks, and are too faint to affect text contrast. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(900px 480px at 88% -8%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 70%),
+    repeating-linear-gradient(90deg, transparent 0 72px, var(--stripe) 72px 144px);
+}
+body::after {
+  content: ""; position: fixed; right: 3%; bottom: calc(var(--bottom-nav-h) + 8px); width: min(380px, 70vw); aspect-ratio: 1;
+  z-index: -1; pointer-events: none; background: var(--art); opacity: 0.08;
+  -webkit-mask: url(/art/cricket-scene.svg) no-repeat center / contain; mask: url(/art/cricket-scene.svg) no-repeat center / contain;
+}
+@media (min-width: 900px) { body::after { right: 40px; bottom: 24px; width: 460px; } }
+
+.main { animation: rise 260ms ease-out both; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.card { box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 60%, transparent), 0 8px 20px -16px var(--shadow); }
+.btn { border-radius: var(--radius-sm); }
+.btn:active { transform: scale(0.98); }
+.btn.primary { box-shadow: 0 6px 14px -8px var(--shadow); }
+.brand-mark { background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 60%, var(--accent))); }
+
+/* Next-match card: the one thing to do */
+.hero { display: flex; flex-direction: column; gap: var(--s3); background: linear-gradient(135deg, var(--primary-soft), var(--surface) 70%); border-color: color-mix(in srgb, var(--primary) 30%, var(--border)); }
+.hero .eyebrow { font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--on-primary-soft); }
+.hero-title { font-size: clamp(1.375rem, 4.5vw, 1.875rem); }
+
+/* Home list: compact rows grouped by day; played matches show predicted then actual */
+.group-h { font-size: 0.875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.match-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--s4); min-height: 64px;
+  text-decoration: none; color: inherit; border-bottom: 1px solid var(--border); touch-action: manipulation;
+  transition: background var(--dur) ease, transform var(--dur) ease;
+}
+.match-row:last-child { border-bottom: 0; }
+.match-row:hover { background: var(--surface-2); transform: translateX(2px); }
+.match-row .who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.match-row .teams { font-weight: 600; }
+.match-row .meta { font-size: 0.8125rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.match-row .side { display: flex; align-items: center; gap: var(--s2); flex: none; color: var(--text-muted); flex-wrap: wrap; justify-content: flex-end; max-width: 52%; }
+.match-row .pair { display: inline-flex; gap: 6px; align-items: baseline; color: var(--text); font-weight: 600; }
+.match-row .pair .arrow { color: var(--text-muted); font-weight: 400; }
+@media (max-width: 520px) { .match-row { align-items: flex-start; } .match-row .side { max-width: 46%; } .match-row .side svg { display: none; } }
+.seg .count { margin-left: 8px; padding: 0 8px; border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: 0.8125rem; }
+.seg a[aria-current="true"] .count { background: var(--surface); }
+
+/* Three steps on a match: review, confirm, enter points */
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); list-style: none; margin: 0; padding: 0; }
+.step { display: flex; flex-direction: column; gap: 2px; padding: var(--s3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); text-decoration: none; color: inherit; min-height: 64px; transition: border-color var(--dur) ease; }
+.step:hover { border-color: var(--primary); }
+.step .n { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.step .t { font-weight: 600; font-size: 0.9375rem; }
+.step[aria-current="step"] { border-color: var(--primary); background: var(--primary-soft); }
+.step[aria-current="step"] .n, .step[aria-current="step"] .t { color: var(--on-primary-soft); }
+.step[data-done="true"] .n::after { content: " ✓"; color: var(--good); }
+@media (max-width: 520px) { .step { padding: var(--s2) var(--s3); } .step .t { font-size: 0.875rem; } }
+
+/* Less important detail tucked away until asked for */
+details.more { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+details.more > summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; padding: 0 var(--s4); font-weight: 600; color: var(--primary); list-style: none; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::after { content: "+"; margin-left: auto; font-size: 1.25rem; }
+details.more[open] > summary::after { content: "–"; }
+details.more > .body { padding: 0 var(--s4) var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
+.seg { align-self: flex-start; max-width: 100%; }

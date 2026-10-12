@@ -231,3 +231,30 @@ Before delivering any UI code, verify:
 - [ ] Responsive: 375px, 768px, 1024px, 1440px
 - [ ] No content hidden behind fixed navbars
 - [ ] No horizontal scroll on mobile
+
+---
+
+## Revision 13 Oct 2026: "Pitch and twilight" (overrides the colour table above where they differ)
+
+Why: Aryan asked for calmer colours, a few effects and cricket pictures, and a simpler journey now that the home list holds about 30 matches.
+
+**Palette** (live tokens are in `src/app/globals.css`; every text pair checked, lowest 5.86:1)
+
+| Role | Light | Dark |
+|------|-------|------|
+| Background | `#f4f7f1` | `#0d1913` |
+| Surface / Surface 2 | `#ffffff` / `#ebf1e8` | `#13231a` / `#1a3025` |
+| Text / Muted | `#14231a` / `#4a5d51` | `#e7f0ea` / `#a6bcad` |
+| Primary (pitch green) | `#1b6a46` | `#74d6a5` |
+| Accent (leather amber, used for "actual" bars) | `#9a5208` | `#f0b35a` |
+| Border | `#d4dfd0` | `#2b4336` |
+
+**Background art:** stumps, ball and bat drawn by us (`public/art/cricket-scene.svg`), used as a CSS mask at 8% opacity in the primary colour, plus faint mowed-pitch stripes. Decorative only (CSS pseudo-elements, no alt text needed), never takes clicks, cards stay opaque so text contrast is unchanged. No photos are used or scraped.
+
+**Motion:** page rise (260 ms), row and card hover, button press. All switched off by `prefers-reduced-motion`.
+
+**Information architecture**
+- Home: a "Next match" card with ONE button (its label comes from `matchState`: Review the team, Open my team, Enter your points). Tabs: Upcoming and Played with counts. Upcoming is grouped by day in Indian time (Today, Tomorrow, Sat 17 Oct); each row shows one status chip. Played rows show predicted then actual score.
+- Match page (agent-found matches): status chip, then a three-step strip (1 Review the team, 2 Edit and confirm, 3 Enter points) whose current step follows `matchState`; the team and captain come first; pitch, summary and limits are folded into "More about this team".
+- One decision function (`src/lib/matchState.ts`, tested) drives the chip, the button and the step, so every screen says the same thing.
+- Targets: 44 px minimum, no horizontal scroll at 375 px (checked on Matches, a match, Learning and Data).
