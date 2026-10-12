@@ -71,7 +71,6 @@ function PlayerItem({ p, max, showBars }: { p: PlayerRow; max: number; showBars:
           {p.pPlay < 1 && <span className="chip warn">Chance of playing {Math.round(p.pPlay * 100)}%</span>}
           {p.venueMultiplier !== 1 && <span className="chip">Venue {pctEffect(p.venueMultiplier)}</span>}
           {p.teamFormMultiplier !== 1 && <span className="chip">Team form {pctEffect(p.teamFormMultiplier)}</span>}
-          {p.reasonSource && <span className="chip info">{p.reasonSource === "gemini" ? "Written by Gemini, checked by code" : "Plain template from the numbers"}</span>}
         </div>
       </div>
     </details>
