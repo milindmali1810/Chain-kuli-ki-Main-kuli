@@ -5,6 +5,8 @@ import { Icon } from "@/components/icons";
 import { formatDate, formatIst, num } from "@/lib/format";
 import { dayLabel, matchState, relativeStart, type MatchState } from "@/lib/matchState";
 import { listMatches, type MatchCard, type StageSummary } from "@/lib/queries";
+import { TeamBadges } from "@/components/TeamBadges";
+import { matchVars } from "@/lib/teamColors";
 import { FindMatches } from "./FindMatches";
 
 export const metadata = { title: "Matches" };
@@ -29,12 +31,15 @@ function bestStage(m: MatchCard): StageSummary | undefined {
 function NextMatch({ m, now }: { m: MatchCard; now: Date }) {
   const s = stateOf(m, now);
   return (
-    <section className="card hero" aria-labelledby="next-h">
+    <section className="card hero has-stripe" style={matchVars(m.teams[0], m.teams[1])} aria-labelledby="next-h">
       <div className="row-between">
         <span className="eyebrow" id="next-h">{s.key === "started" ? "Needs your points" : "Next match"}</span>
         {m.startUtc && <span className="muted">{relativeStart(m.startUtc, now)}</span>}
       </div>
-      <h2 className="hero-title">{m.teams[0]} v {m.teams[1]}</h2>
+      <div className="title-row">
+        <TeamBadges a={m.teams[0]} b={m.teams[1]} />
+        <h2 className="hero-title">{m.teams[0]} v {m.teams[1]}</h2>
+      </div>
       <p className="muted">{m.startUtc ? formatIst(m.startUtc) : formatDate(m.date)} · {m.venue}</p>
       <div className="row">
         <Link href={`/matches/${m.cricsheetId}${anchorFor(s)}`} className="btn primary">{s.action}</Link>
@@ -48,7 +53,7 @@ function UpcomingRow({ m, now, withDay }: { m: MatchCard; now: Date; withDay?: b
   const time = m.startUtc ? formatIst(m.startUtc).replace(/^\d+ \w+, /, "") : "";
   const when = withDay && m.startUtc ? `${dayLabel(m.startUtc, now)}, ${time}` : time;
   return (
-    <Link href={`/matches/${m.cricsheetId}`} className="match-row" aria-label={`${m.teams[0]} versus ${m.teams[1]}, ${m.startUtc ? formatIst(m.startUtc) : ""}. ${s.label}`}>
+    <Link href={`/matches/${m.cricsheetId}`} className="match-row has-edge" style={matchVars(m.teams[0], m.teams[1])} aria-label={`${m.teams[0]} versus ${m.teams[1]}, ${m.startUtc ? formatIst(m.startUtc) : ""}. ${s.label}`}>
       <span className="who">
         <span className="teams">{m.teams[0]} v {m.teams[1]}</span>
         <span className="meta">{when}</span>
@@ -65,7 +70,7 @@ function PlayedRow({ m }: { m: MatchCard }) {
   const stage = bestStage(m);
   const played = stage?.actual !== null && stage?.actual !== undefined;
   return (
-    <Link href={`/matches/${m.cricsheetId}`} className="match-row" aria-label={`${m.teams[0]} versus ${m.teams[1]}, ${formatDate(m.date)}`}>
+    <Link href={`/matches/${m.cricsheetId}`} className="match-row has-edge" style={matchVars(m.teams[0], m.teams[1])} aria-label={`${m.teams[0]} versus ${m.teams[1]}, ${formatDate(m.date)}`}>
       <span className="who">
         <span className="teams">{m.teams[0]} v {m.teams[1]}</span>
         <span className="meta">{formatDate(m.date)}</span>

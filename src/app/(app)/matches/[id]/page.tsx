@@ -10,6 +10,8 @@ import { loadEditorData } from "@/lib/editor";
 import { reconcile } from "@/lib/editorLogic";
 import { matchState } from "@/lib/matchState";
 import { teamScore } from "@/lib/teamScore";
+import { TeamBadges } from "@/components/TeamBadges";
+import { matchVars } from "@/lib/teamColors";
 import { EntryForm } from "./EntryForm";
 import { TeamEditor } from "./TeamEditor";
 import { buildTeamNow } from "./setup/actions";
@@ -94,8 +96,12 @@ async function MatchView({ params, searchParams }: { params: Promise<{ id: strin
     <div className="stack-lg">
       <div className="stack">
         <Link href="/" className="row" style={{ minHeight: 44, textDecoration: "none" }}><Icon name="back" />Matches</Link>
+        <div className="stripe-pill" style={matchVars(match.teams[0], match.teams[1])} aria-hidden="true" />
         <div className="page-head" style={{ marginBottom: 0 }}>
-          <h1>{match.teams[0]} v {match.teams[1]}</h1>
+          <div className="title-row">
+            <TeamBadges a={match.teams[0]} b={match.teams[1]} />
+            <h1>{match.teams[0]} v {match.teams[1]}</h1>
+          </div>
           <p className="muted">{match.upcoming ? formatIst(match.startUtc) : formatDate(match.date)} · {match.venue}</p>
         </div>
         <p><span className={`status ${live ? state.tone : played ? "good" : "plain"}`}>{live ? state.label : played ? "Played" : "Not played yet"}</span></p>

@@ -374,3 +374,22 @@ details.quiet > summary { cursor: pointer; min-height: 44px; display: flex; alig
 /* The components-map drawing scrolls sideways on a phone instead of shrinking the text */
 .diagram { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .diagram svg { min-width: 760px; }
+
+/* ---------- Team colours (13 Oct 2026): a thin stripe and small badges, decoration only ---------- */
+/* The stripe is the first side's colour, then the second's. Text and buttons keep the app's own colours. */
+.has-stripe { position: relative; overflow: hidden; }
+.has-stripe::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 6px;
+  background: linear-gradient(90deg, var(--ta) 0 50%, var(--tb) 50% 100%); box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+}
+.hero.has-stripe { padding-top: calc(var(--s4) + 6px); }
+.has-edge { position: relative; }
+.has-edge::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--ta) 0 50%, var(--tb) 50% 100%); }
+.stripe-pill { height: 6px; width: 96px; border-radius: 999px; background: linear-gradient(90deg, var(--ta) 0 50%, var(--tb) 50% 100%); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+.badges { display: inline-flex; flex: none; align-items: center; }
+.badge {
+  width: 40px; height: 40px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.02em;
+  border: 2px solid var(--bg-solid); box-shadow: 0 0 0 1px rgba(128, 128, 128, 0.35);
+}
+.badge + .badge { margin-left: -10px; }
+.title-row { display: flex; align-items: center; gap: var(--s3); }

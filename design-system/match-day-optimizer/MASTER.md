@@ -279,3 +279,8 @@ Lowest text contrast 5.08:1 on flat colours; worst case with the art underneath 
 **Background scene** (`public/art/cricket-scene.svg`, own artwork, single colour used as a CSS mask): floodlight towers, a trophy, curved stands, the boundary rope and 30-yard circle, a pitch with batter, bowler, wicketkeeper and fielders, and a helmet, bat and ball in the corners. No stripes any more.
 
 On phones a match row stacks: name, then venue, then the status chip (a long status used to overlap the name).
+
+---
+
+## Team colours (13 Oct 2026)
+A thin stripe (the two sides' main colours, half and half) across the top of the Next match card, a 4 px left edge on match rows and a short pill plus two small code badges on a match page. Decoration only: all text and buttons keep the palette above, so readability never depends on a team's colours. Badge letters are chosen (white or near-black, with the colour darkened if needed) to pass 4.5:1. Colours live in `src/lib/teamColors.ts`; teams not listed get a steady colour from their name. No logos.
