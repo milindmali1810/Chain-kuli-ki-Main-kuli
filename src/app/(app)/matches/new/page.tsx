@@ -19,7 +19,7 @@ async function FormLoader() {
   return (
     <NewMatchForm
       teams={(teams ?? []).map((t) => t.name as string)}
-      venues={(venues ?? []).map((v) => venueLabel(v.name, v.city))}
+      venues={[...new Set((venues ?? []).map((v) => venueLabel(v.name, v.city)))]} // the database holds some grounds twice: list each name once
     />
   );
 }

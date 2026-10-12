@@ -26,6 +26,15 @@ describe("matchState", () => {
   });
 });
 
+describe("matchState: a match nobody entered points for", () => {
+  it("stays 'started' for 36 hours, then closes", () => {
+    const base = { live: true, hasTeam: true, confirmed: true, hasActual: false };
+    expect(matchState({ ...base, startUtc: "2026-10-12T08:00:00Z" }, now).key).toBe("started"); // 24 h ago
+    expect(matchState({ ...base, startUtc: "2026-10-11T07:00:00Z" }, now).key).toBe("closed"); // 49 h ago
+    expect(matchState({ ...base, startUtc: "2026-10-11T07:00:00Z", hasActual: true }, now).key).toBe("played");
+  });
+});
+
 describe("relativeStart", () => {
   it("speaks in minutes, hours and days", () => {
     expect(relativeStart("2026-10-13T08:40:00Z", now)).toBe("in 40 min");

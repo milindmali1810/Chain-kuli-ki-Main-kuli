@@ -78,6 +78,7 @@ function PlayedRow({ m }: { m: MatchCard }) {
             <span title="Actual">{num(stage.actual)}</span>
           </span>
         )}
+        {m.noResult && <span className="status plain">No result</span>}
         <Icon name="chevron" size={18} />
       </span>
     </Link>

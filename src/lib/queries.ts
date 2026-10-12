@@ -8,6 +8,10 @@ import { venueLabel } from "./format";
 
 const rules = RULES_PROFILES[DEFAULT_RULES_PROFILE];
 
+// A match nobody enters points for must not stay "upcoming" forever: 36 hours after its start it becomes a past match with no result.
+const RESULT_WINDOW_MS = 36 * 3600_000;
+export const stillOpen = (startIso: string | null | undefined, now: number = Date.now()) => !startIso || new Date(startIso).getTime() > now - RESULT_WINDOW_MS;
+
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 // Real Dream11 points typed by Aryan win over points computed from the scorecard.
@@ -38,6 +42,7 @@ export interface MatchCard {
   stages: { final?: StageSummary; provisional?: StageSummary };
   actualSource: "dream11_manual" | "computed_from_scorecard" | null;
   upcoming?: boolean; // a match that has not been played: found by the agent or added by hand
+  noResult?: boolean; // started long ago and no points were ever entered
   startUtc?: string; // exact start time, for upcoming matches
   creditsSeeded?: boolean; // true unless every credit was typed from Dream11
 }
@@ -69,7 +74,8 @@ export async function listMatches(): Promise<MatchCard[]> {
       venue: venueLabel((m.venues as unknown as Row | null)?.name, (m.venues as unknown as Row | null)?.city),
       stages: {},
       actualSource: actualRows.length === 0 ? null : hasManual ? "dream11_manual" : "computed_from_scorecard",
-      upcoming: String(m.cricsheet_match_id).startsWith("live-") && actualRows.length === 0,
+      upcoming: String(m.cricsheet_match_id).startsWith("live-") && actualRows.length === 0 && stillOpen(m.start_time),
+      noResult: String(m.cricsheet_match_id).startsWith("live-") && actualRows.length === 0 && !stillOpen(m.start_time),
       startUtc: String(m.start_time),
     };
     // Aryan's own team: the total is shown only when every one of his players has points on file.
@@ -108,7 +114,7 @@ async function listUpcomingWithoutTeam(db: ReturnType<typeof serverDb>, haveTeam
     .from("matches")
     .select("id, cricsheet_match_id, start_time, team_a, team_b, venues(name, city)")
     .eq("data_origin", "manual");
-  const rows = (data ?? []).filter((m) => !haveTeam.includes(m.id));
+  const rows = (data ?? []).filter((m) => !haveTeam.includes(m.id) && stillOpen(m.start_time));
   if (rows.length === 0) return [];
   const { data: teams } = await db.from("teams").select("id, name");
   const teamName = new Map((teams ?? []).map((t) => [t.id, t.name as string]));
@@ -261,7 +267,7 @@ export async function getMatch(cricsheetId: string): Promise<MatchDetail | null>
     matchId: m.id,
     date: String(m.start_time).slice(0, 10),
     startUtc: String(m.start_time),
-    upcoming: String(m.cricsheet_match_id).startsWith("live-") && !hasActual,
+    upcoming: String(m.cricsheet_match_id).startsWith("live-") && !hasActual && stillOpen(m.start_time),
     teams: [teamName.get(m.team_a) ?? "?", teamName.get(m.team_b) ?? "?"],
     venue: venueLabel((m.venues as unknown as Row | null)?.name, (m.venues as unknown as Row | null)?.city),
     weather: w,

@@ -1,7 +1,7 @@
 // What a match needs from Aryan next. One place decides it, so the home list, the next-match card and the match page
 // all say the same thing. Pure and tested.
 
-export type StateKey = "no-team" | "review" | "confirmed" | "started" | "played";
+export type StateKey = "no-team" | "review" | "confirmed" | "started" | "closed" | "played";
 
 export interface MatchStateInput {
   live: boolean; // an upcoming-type match (found by the agent or added by hand), not a backtest
@@ -20,11 +20,17 @@ export interface MatchState {
   step: 1 | 2 | 3; // which of the three steps is current: 1 review, 2 confirm, 3 enter points
 }
 
+const RESULT_WINDOW_MS = 36 * 3600_000; // keep in step with stillOpen() in queries.ts
+
 export function matchState(i: MatchStateInput, now: Date): MatchState {
   if (!i.live || i.hasActual) {
     return { key: "played", label: "Played", short: "Played", action: "See how it went", tone: "good", step: 3 };
   }
   const started = i.startUtc ? new Date(i.startUtc).getTime() <= now.getTime() : false;
+  // Long after the start with no points ever entered: the match is simply over, and must not stay at the top of the list.
+  if (started && i.startUtc && now.getTime() - new Date(i.startUtc).getTime() > RESULT_WINDOW_MS) {
+    return { key: "closed", label: "No points were entered", short: "No result", action: "Open", tone: "plain", step: 3 };
+  }
   if (started) {
     return i.hasTeam
       ? { key: "started", label: "Started: enter your points after the match", short: "Started", action: "Enter your points", tone: "warn", step: 3 }

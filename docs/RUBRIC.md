@@ -1,5 +1,7 @@
 # RUBRIC.md — Dream11 T20 selection rubric (v1.0, starting hypotheses)
 
+> **Version history (13 Oct 2026).** The numbers below are the starting hypotheses (v1.0). The live rubric is versioned in the database. Version 4 is active: recent-form weight 0.2 (was 0.4) and all role corrections neutral, chosen by replaying 361 past matches (see docs/VIVA_NOTES.md). Change a setting with `npm run rubric:set`; every change is a numbered version that can be undone on the Learning screen.
+
 All numbers below are STARTING VALUES [Guessing] unless marked. Each has a parameter ID so it can be changed in config and versioned. Nothing here predicts match results; it estimates each player's expected fantasy points under the match conditions.
 
 ## 0. Principles

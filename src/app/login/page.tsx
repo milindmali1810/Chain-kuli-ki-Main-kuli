@@ -7,6 +7,7 @@ export const metadata = { title: "Enter PIN" };
 // and the rest of the page can be built ahead of time.
 async function ErrorMessage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
+  if (error === "locked") return <p className="err" role="alert" id="pin-error">Too many wrong tries. Please wait 15 minutes and try again.</p>;
   return error ? <p className="err" role="alert" id="pin-error">That PIN isn&apos;t right. Try again.</p> : null;
 }
 

@@ -26,7 +26,7 @@ Short, honest answers you can say in your own words. Each one names where to loo
 - No. Dream11 publishes no free credit data, and no API or free dataset exists. Credits are **seeded** from each player's recent fantasy points, ranked within the match, and labelled `seeded` everywhere. A real credit can replace any of them.
 
 ## Why a backtest? Isn't that cheating?
-- No live match was available before the deadline. For a played match the system sees only data from before it (`src/lib/predict.ts` ignores any row dated on or after the match). Roles are inferred as of the match date too, so nothing leaks.
+- Two things are shown: the live path (the agent finds upcoming matches and builds teams, which cannot be scored until the match is played) and backtests on matches already played, which give the evidence. No live match could be scored before the deadline. For a played match the system sees only data from before it (`src/lib/predict.ts` ignores any row dated on or after the match). Roles are inferred as of the match date too, so nothing leaks.
 - Real scorecard points are computed with the same points table and shown beside the predictions.
 
 ## Can Aryan change the team? What happens at match time?
@@ -34,7 +34,7 @@ Short, honest answers you can say in your own words. Each one names where to loo
 - The rules are checked by the same validator the agent's team goes through (`src/lib/editorLogic.ts` calls `validateTeam`), in the browser while editing and again on the server before saving (`team-actions.ts`). The server also re-loads players, roles and credits from the database and re-checks the lock time, so nothing the browser sends is trusted. I tested this by sending an invalid team straight to the server: it was refused and nothing was saved.
 - Editing is open until the match starts, then locked. A match that has already been played is "practice": he can still edit and confirm a team to try the flow.
 - The agent cannot submit to Dream11 (there is no official way), so Aryan enters the confirmed team in Dream11 himself.
-- Honest limit: a true live match also needs an upcoming match to be created, the confirmed XI at the toss, real credits and an exact start time. That path is not built yet; the engine already takes those as inputs.
+- The live path is built: the agent finds the match from a fixture feed, builds the team about three days before, and Aryan keeps or edits it. Honest limit: the playing XI is a prediction from each side's last five matches, because no free source publishes the real XI; Aryan changes a player himself if one is missing. Credits are the agent's estimates unless he types real ones.
 
 ## What happens after the match?
 - Aryan enters the points **his team** scored (the team he confirmed, or the agent's if he never edited it): the Dream11 points for each of his players, and the team total Dream11 shows. Only the values he changes are stored as real Dream11 points; the rest stay labelled as computed from the scorecard.
@@ -58,20 +58,22 @@ Short, honest answers you can say in your own words. Each one names where to loo
 - Version 4 (13 Oct 2026) = original rules with recent form weighted 0.2 instead of 0.4 and the corrections reset. It was best on the older matches (+1.1) and still above the original on the newest (+0.8 against +0.3). The gain is small and not proven; do not oversell it.
 
 ## What does the data cover, and what is missing?
-- Men's T20 internationals since 2021, the IPL, and the Syed Mushtaq Ali Trophy (Cricsheet), plus weather (Open-Meteo).
+- Men's T20 internationals since 2021, the IPL, and the Syed Mushtaq Ali Trophy (Cricsheet), plus weather (Open-Meteo). Upcoming fixtures come from the CricAPI feed (an official API; Cricbuzz and Cricinfo forbid scraping).
 - Missing: Afghanistan matches (Cricsheet withholds them), women's matches, and Indian first-class cricket (Ranji, Duleep, Irani). Cricsheet does not carry first-class Indian data, and I found no official free BCCI feed. First-class numbers are also a weak guide to T20 fantasy points.
 
 ## What did the model not use?
 - Batter vs bowler-type matchups, spin vs pace, batting order effects: the data is unavailable. Every prediction lists these as "unavailable" instead of inventing them.
 
 ## Security
-- The app is behind a PIN checked on the server; the cookie holds a hash, not the PIN.
+- The app is behind a PIN checked on the server (constant-time comparison); the cookie holds a hash, not the PIN. Five wrong PINs from one address pause that address for 15 minutes, so the 10,000 possible 4-digit PINs cannot simply be tried one by one. A longer PIN would be stronger still.
+- Standard browser headers are set (no framing, no content sniffing). The daily job route needs a secret that only Vercel's scheduler has.
 - The database is locked with Row Level Security and no public access; only the server key can read or write, and that key never reaches the browser.
 - Every server action re-checks the PIN, because actions can be called directly.
 - Keys were pasted into a chat during the build and should be regenerated after submission.
 
 ## What I would do next
-- A real toss-time trigger and a scheduled job for live matches.
+- A real toss-time trigger when a source for the announced XI exists (the daily job already finds matches and builds teams).
+- An automatic daily refresh of the match history, so the newest results are always included (today it is re-ingested by hand).
 - More backtested matches so the learning loop has stronger evidence, and a proper hold-out test.
 - Real Dream11 credits and points from screenshots of the app, to settle the unverified rules.
 - Indian domestic first-class data if a legitimate source appears.
@@ -79,4 +81,4 @@ Short, honest answers you can say in your own words. Each one names where to loo
 ## If something goes wrong in the viva
 - If a page is slow the first time, Supabase was asleep: refresh once.
 - If the live link redirects to the PIN screen, sign in again.
-- Everything is in the repo, and `npm test` runs the 230+ tests offline.
+- Everything is in the repo, and `npm test` runs the 340+ tests offline.
